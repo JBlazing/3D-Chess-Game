@@ -1,0 +1,421 @@
+<head>
+<title>CIS_454_Project1 </title>
+<meta http-equiv='content-type' content='text/html; charset=ISO-8859-1'>
+
+<!-- JavaScript Libraries //-->
+<script type='text/javascript' src='js/gl-matrix-min.js'></script>
+
+<script type='text/javascript' src='js/loader.js'></script>
+<script type='text/javascript' src='js/utils.js'></script>
+<script type='text/javascript' src='js/webgl-utils.js'></script>
+<script type='text/javascript' src='js//Camera.js'></script>
+<script type='text/javascript' src='js/CameraInteractor.js'></script>
+<script type='text/javascript' src='js/SceneTransforms.js'></script>
+<script type='text/javascript' src='js/Scene.js'></script>
+<script type='text/javascript' src='js/Chess.js'></script>
+<script type='text/javascript' src='js/Textures.js'></script>
+<script type='text/javascript' src='js/Animation.js'></script>
+<script type='text/javascript' src='js/AI.js'></script>
+
+
+</head>
+<body>
+
+<div id='contents'>
+    <div id='canvasContainer'>
+        <canvas id='canvas' width='1280' height='720'>
+        </canvas>
+    </div>
+</div>
+
+
+<script>
+
+/*
+
+	The project is seperated into many javascript files for clean code
+	
+	The technqiues used are described in this section
+	
+	for Animation we used b-slpine interpolation for animations 
+		this is all located in the Animation.js file
+		
+	for Textures all of the texture loading and processing in Textures.js
+	
+	Many of the other techinques where reused from previous projects
+	
+	All of the rendering happens in the draw function in the Scene.js file
+	
+	
+*/
+
+
+
+
+
+
+var gl = null;     // WebGL context
+var shaderProgram = null;    // The program (shaders)
+var materials = null;
+var skyPrg = null;
+var anime = [];
+var Pos = null;
+var boxPos = null;
+var chess = null;
+
+var curMove = 0;
+var allMoves = null;
+
+function move(from, to){
+	
+	let move = chess.move({from: from , to: to})
+	console.log(move)
+	if(move != null){
+		try{
+			
+			//make the capurted piece invisible when captured
+			
+			if(move.hasOwnProperty("captured")){
+			
+				let scn  = Scene.objects.filter(obj => obj.cord == to)[0];
+				scn.isVisible = false;
+				scn.cord = ""
+			}
+			
+			/*
+				Check for a castle move and then move the rook acordinay
+			*/
+			
+			if(move.hasOwnProperty("san") && (move.san == "O-O" || move.san == "O-O-O")){
+				if(move.to == "g1"){
+					let a =  Scene.objects.filter(x => x.cord == "h1")[0];
+					a.animation = Animation.createAnimation(a.location , Pos[a.name]["f1"])
+					a.cord = "f1";
+					
+				}
+				else if(move.to == "c1"){
+					let a =  Scene.objects.filter(x => x.cord == "a1")[0];
+					a.animation = Animation.createAnimation(a.location , Pos[a.name]["d1"])
+				
+				}
+				else if(move.to == "g8"){
+					let a =  Scene.objects.filter(x => x.cord == "h8")[0];
+					a.animation = Animation.createAnimation(a.location , Pos[a.name]["f8"])
+				
+				}
+				else if(move.to == "c8"){
+					let a =  Scene.objects.filter(x => x.cord == "a8")[0];
+					a.animation = Animation.createAnimation(a.location , Pos[a.name]["d8"])
+				
+				}
+			}
+			
+			let obj = Scene.objects.filter( obj => obj.cord == from)[0]
+			
+			obj.cord = to;
+			console.log(Pos[obj.name])
+			let end = Pos[obj.name][to];
+			
+			let postions = Animation.createAnimation(obj.location , end);
+
+			console.log(postions[postions.length - 1]);
+
+			obj.animation = postions;
+			clearMoves();
+		}
+		catch(err){
+			console.log(err);
+		}
+	}
+}
+
+function showMoves(from){
+
+	let moves = chess.moves({'square' : from , verbose : true })
+	console.log(moves);
+	moves.forEach(function(move){
+	
+		let boxes = Scene.boxs.filter(x => x.name == move.to)
+		//console.log(boxes);
+		boxes.forEach(b => b.isVisible = true);
+		
+	})
+
+}
+function showMove(from , to){
+	
+	let piece = Scene.objects.filter(x => x.cord == from)[0]
+	let box = Scene.boxs.filter(x => x.name == to )[0]
+	console.log(piece);
+	piece.Selected = true;
+	box.isVisible = true;
+
+}
+function clearMoves(){
+
+	let boxs = Scene.boxs.filter(x => x.isVisible)
+	let piece = Scene.objects.filter(x => x.Selected);
+	piece.forEach(x => x.Selected = false);
+	boxs.forEach(x => x.isVisible = false)
+
+}
+
+
+function initSkybox(attrList , uniformList){
+
+	var fragmentShader = null; //= utils.getShader(gl, "shader-fs");
+	var vertexShader = null; //= utils.getShader(gl, "shader-vs");
+	
+	Scene.loadna("/shader/skybox.vert" , function(text,url){
+	
+	console.log(text)
+		let shader = gl.createShader(gl.VERTEX_SHADER)
+		gl.shaderSource(shader , text);
+		gl.compileShader(shader);
+		vertexShader = shader;
+		
+	});
+	
+	Scene.loadna("/shader/skybox.frag", function(text , url){
+		
+		let shader = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(shader , text);
+		gl.compileShader(shader)
+		fragmentShader = shader;
+		
+	
+	});
+	 
+	skyPrg = gl.createProgram();
+	gl.attachShader(skyPrg, vertexShader);
+	gl.attachShader(skyPrg, fragmentShader);
+	
+	gl.linkProgram(skyPrg);
+	
+	if (!gl.getProgramParameter(skyPrg, gl.LINK_STATUS)) {
+			
+
+			alert("Could not initialise shaders");
+	}
+	
+	
+	for(var i=0, max = attrList.length; i <max; i+=1){
+			skyPrg[attrList[i]] = gl.getAttribLocation(skyPrg, attrList[i]);
+	}
+	for(var i=0, max = uniformList.length; i < max; i +=1){
+			skyPrg[uniformList[i]] = gl.getUniformLocation(skyPrg, uniformList[i]);
+	}
+	
+	gl.uniform3fv(skyPrg.uLightPosition,   [0,5,20]);
+	gl.uniform3fv(skyPrg.uLightAmbient,    [1.0,1.0,1.0,1.0]);
+	gl.uniform4fv(skyPrg.uLightDiffuse,    [1.0,1.0,1.0,1.0]);
+	gl.uniform1f(skyPrg.uAlpha, 1.0);
+	//gl.uniform1i(skyPrg.uUseVertexColor, useVertexColors);
+	gl.uniform1i(skyPrg.uUseLambert, true);
+	
+	//console.log(skyPrg)
+}
+	function renderSkyBox(){
+		
+		try{
+			if(Scene.objects == undefined) return;
+			var object = Scene.objects[0];
+			//console.log(object)
+			gl.useProgram(skyPrg);
+			Scene.transforms.prg = skyPrg;
+			
+			Scene.transforms.updatePerspective();
+			
+			Scene.transforms.calculateModelView();
+			Scene.transforms.push();
+			mat4.scale(Scene.transforms.mvMatrix , [350.0,350.0,350.0]);
+			mat4.rotate(Scene.transforms.mvMatrix  , 90 , [0,0,0])
+			
+			Scene.transforms.setMatrixUniforms();
+			Scene.transforms.pop();
+			
+		
+			//console.log(object.vertexBuff.itemSize)
+			
+			//gl.uniform4fv(skyPrg.uMaterialDiffuse, [1.0,1.0,1.0,1.0]);
+			//gl.uniform4fv(skyPrg.uMaterialAmbient, [1.0,1.0,1.0,1.0]);
+			//gl.uniform1i(skyPrg.uWireframe,false);
+			
+			
+			//Setting attributes
+			gl.enableVertexAttribArray(skyPrg.aVertexPosition);
+		   // gl.disableVertexAttribArray(skyPrg.aVertexNormal);
+			//gl.disableVertexAttribArray(skyPrg.aVertexColor);
+		
+			gl.bindBuffer(gl.ARRAY_BUFFER, object.vertexBuff);
+			gl.vertexAttribPointer(skyPrg.aVertexPosition, object.vertexBuff.itemSize, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(skyPrg.aVertexPosition);
+			
+			gl.enableVertexAttribArray(skyPrg.aVertexTextureCoords);
+			gl.bindBuffer(gl.ARRAY_BUFFER, object.textBuff);
+			gl.vertexAttribPointer(skyPrg.aVertexTextureCoords, object.textBuff.itemSize, gl.FLOAT, false, 0, 0);
+
+			
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_CUBE_MAP, Texture.skybox);
+			gl.uniform1i(skyPrg.uCubeSampler, 0);
+			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, object.normals);
+			gl.vertexAttribPointer(skyPrg.aVertexNormal, object.normals.itemSize, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(skyPrg.aVertexNormal);
+			
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.IdxBuffer);
+			gl.drawElements(gl.TRIANGLES, object.IdxBuffer.numItems, gl.UNSIGNED_SHORT,0)
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+	}catch(err)
+	{
+		console.log(err);
+	}
+
+	}
+	
+ function initLights(){
+    
+     /*
+
+        These Thing where implemented setting the apporiapte values here
+        and then having the graphics shader compute the phong model based
+        off these values. The material values where provided by the json
+        model so we just imported them
+
+     */
+
+    //if(materials != null){
+        gl.uniform3f(shaderProgram.uLightPosition,    0.0, 0.0, 125.0); //changed
+        gl.uniform4fv(shaderProgram.uLightAmbient,  [.5,.5,.5,1.0]);
+        gl.uniform4fv(shaderProgram.uLightDiffuse,  [0.5,0.5,0.5,1.0]); 
+        gl.uniform4fv(shaderProgram.uLightSpecular,  [0.5,0.5,0.5,1.0]);
+		
+        gl.uniform4fv(shaderProgram.uMaterialAmbient, [.5,.5,.5,1.0]); 
+        gl.uniform4fv(shaderProgram.uMaterialDiffuse, [0.5,0.5,0.5,1.0]);
+        gl.uniform4fv(shaderProgram.uMaterialSpecular,[0.5,0.5,0.5,1.0]);
+		
+        //gl.uniform1f(shaderProgram.uShininess, materials[5].value);
+        loaded = false;
+    
+}
+
+function main(){
+
+	chess = new Chess();
+    utils.initGL(document.getElementById("canvas"))
+
+    utils.initShaders();
+	initSkybox(["aVertexPosition",
+					"aVertexNormal",
+					"aVertexColor",
+					"aVertexTextureCoords"] , 	
+	
+	[				"uPMatrix", 
+					"uMVMatrix", 
+					"uNMatrix",
+					"uMaterialDiffuse",
+					"uMaterialAmbient",
+					"uLightAmbient",
+					"uLightDiffuse",
+					"uLightPosition",
+					"uWireframe",
+					"uAlpha",
+					"uUseVertexColor",
+					"uUseLambert",
+					"uSampler",
+					"uCubeSampler"
+					])
+	Scene.init();
+	Scene.loadna('/chesspos.json' , function(chessPosition){
+		Pos = JSON.parse(chessPosition);
+		console.log(Pos)
+	})
+	Scene.loadna('/boxpos.json' , function(box){
+		boxPos = JSON.parse(box);
+	})
+	
+    //loader('model/P2_model_ChessPiecesandBoardDone.json' , load_model_to_buffers);
+	Scene.load('/model/P2_model_ChessPiecesandBoardDone.json' , Scene.loadModels);
+	Scene.load('model/texCube.json' , Scene.loadCube);
+	Scene.load('model.json' , function(m){
+		Scene.wizard = [];
+		
+		m.meshes.forEach(function(model , i )				{
+				
+					var vertices = new Float32Array(model.vertices);
+					var normal = new Float32Array(model.normals);
+					var faces = new Uint16Array([].concat.apply([] , model.faces));
+					
+					
+					var textures = new Float32Array(model.texturecoords[0])
+					
+					
+					let obj = { 
+								'location' : [0,0,0],
+								'Selected' : false ,
+								'normals' : gl.createBuffer() , 
+								'vertexBuff': gl.createBuffer() , 
+								'IdxBuffer':gl.createBuffer(),
+								'textBuff' : gl.createBuffer(),
+								'isVisible' : true
+							  };
+					
+
+					gl.bindBuffer(gl.ARRAY_BUFFER, obj.normals);
+					gl.bufferData(gl.ARRAY_BUFFER, normal, gl.STATIC_DRAW);
+					obj.normals.itemSize = 3;
+					obj.normals.numItems = normal.length / 3;
+
+					
+					gl.bindBuffer(gl.ARRAY_BUFFER, obj.textBuff);
+					gl.bufferData(gl.ARRAY_BUFFER, textures, gl.STATIC_DRAW);
+					obj.textBuff.itemSize = 2;
+					obj.textBuff.numItems = textures.length / 2;
+					
+
+					gl.bindBuffer(gl.ARRAY_BUFFER, obj.vertexBuff);
+					gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+					obj.vertexBuff.itemSize = 3;
+					obj.vertexBuff.numItems = vertices.length / 3;
+
+					
+					gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.IdxBuffer);
+					gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, faces, gl.STATIC_DRAW);
+					obj.IdxBuffer.itemSize = 1;
+					obj.IdxBuffer.numItems = faces.length ;
+
+					Scene.wizard.push(obj)
+				});
+		
+	})
+	
+	
+	
+	Texture.init(["textures/board.png" , "textures/ASHSEN_2.GIF" , "textures/ASHSEN_2BUMP.gif"])
+	Texture.cubeMapTexture(["Skybox/spire_rt.png" , "Skybox/spire_lf.png" , "Skybox/spire_ft.png" , "Skybox/spire_bk.png" , "Skybox/spire_dn.png" , "Skybox/spire_up.png"]);
+	Scene.transforms.prg = shaderProgram;
+	console.log(Scene.transforms.prg);
+	//animationInit();
+	gl.clearColor(0.0,0.0,0.0,1.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+	
+	allMoves = chess.moves({verbose : true});
+    tick();
+	
+}
+
+
+window.onload = main
+
+
+</script>
+</body>
+</html>
