@@ -196,7 +196,7 @@ var Scene = {
 		load: 
 			function(url , func){
 				new Promise((resolve , reject) => {
-					let resource = "https://"+document.domain+ url;
+					let resource = window.location.href + url;
 					xhr.open("GET", url);
 					xhr.onload = () => resolve(JSON.parse(xhr.responseText))
 					xhr.onerror = () => reject(xhr.statusText);
@@ -208,7 +208,7 @@ var Scene = {
 			function(url , func)
 			{
 				let xhr = new XMLHttpRequest();
-				let resource = "https://"+document.domain+ url;
+				let resource = window.location.href + url;
 				xhr.open("GET" , resource , false);
 				xhr.onload = () => func(xhr.responseText)
 				xhr.send();
