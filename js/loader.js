@@ -1,6 +1,6 @@
 function loader(filename , call_back){
     var request = new XMLHttpRequest();
-    var resource = "http://"+document.domain+ filename
+    var resource = "https://"+document.domain+ filename
     request.open("GET",filename);
     request.onreadystatechange = function() {
         console.info(request.readyState +' - '+request.status); 
