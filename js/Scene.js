@@ -375,7 +375,7 @@ var Scene = {
 				}
 			})
 			
-			
+			/*
 			Scene.wizard.forEach(function(box){
 				
 				Scene.transforms.calculateModelView();
@@ -397,6 +397,7 @@ var Scene = {
 				gl.drawElements(gl.TRIANGLES, box.IdxBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 				
 			});
+			*/
 
 		}
 
