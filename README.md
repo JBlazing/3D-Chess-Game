@@ -1,3 +1,5 @@
+[Link to hosted version](https://jreynoldsumd.github.io/3D-Chess-Game/)
+
 This was developed for a computer graphics class.
 
 You need to run an HTTP server in order to play the game. Have it point at the root folder of this project
