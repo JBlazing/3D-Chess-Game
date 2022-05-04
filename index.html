@@ -228,7 +228,7 @@ function initSkybox(attrList , uniformList){
 			
 			Scene.transforms.calculateModelView();
 			Scene.transforms.push();
-			mat4.scale(Scene.transforms.mvMatrix , [350.0,350.0,350.0]);
+			mat4.scale(Scene.transforms.mvMatrix , [10000.0,10000.0,1000.0]);
 			mat4.rotate(Scene.transforms.mvMatrix  , 90 , [0,0,0])
 			
 			Scene.transforms.setMatrixUniforms();
