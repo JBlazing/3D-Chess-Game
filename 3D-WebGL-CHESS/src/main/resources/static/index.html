@@ -5,17 +5,17 @@
 <!-- JavaScript Libraries //-->
 <script type='text/javascript' src='js/gl-matrix-min.js'></script>
 
-<script type='text/javascript' src='js/loader.js'></script>
-<script type='text/javascript' src='js/utils.js'></script>
-<script type='text/javascript' src='js/webgl-utils.js'></script>
-<script type='text/javascript' src='js//Camera.js'></script>
-<script type='text/javascript' src='js/CameraInteractor.js'></script>
-<script type='text/javascript' src='js/SceneTransforms.js'></script>
-<script type='text/javascript' src='js/Scene.js'></script>
-<script type='text/javascript' src='js/Chess.js'></script>
-<script type='text/javascript' src='js/Textures.js'></script>
-<script type='text/javascript' src='js/Animation.js'></script>
-<script type='text/javascript' src='js/AI.js'></script>
+<script type='text/javascript' src='/js/loader.js'></script>
+<script type='text/javascript' src='/js/utils.js'></script>
+<script type='text/javascript' src='/js/webgl-utils.js'></script>
+<script type='text/javascript' src='/js//Camera.js'></script>
+<script type='text/javascript' src='/js/CameraInteractor.js'></script>
+<script type='text/javascript' src='/js/SceneTransforms.js'></script>
+<script type='text/javascript' src='/js/Scene.js'></script>
+<script type='text/javascript' src='/js/Chess.js'></script>
+<script type='text/javascript' src='/js/Textures.js'></script>
+<script type='text/javascript' src='/js/Animation.js'></script>
+<script type='text/javascript' src='/js/AI.js'></script>
 
 
 </head>
@@ -167,8 +167,7 @@ function initSkybox(attrList , uniformList){
 	var vertexShader = null; //= utils.getShader(gl, "shader-vs");
 	
 	Scene.loadna("/shader/skybox.vert" , function(text,url){
-	
-	console.log(text)
+	    console.log(text);
 		let shader = gl.createShader(gl.VERTEX_SHADER)
 		gl.shaderSource(shader , text);
 		gl.compileShader(shader);
@@ -341,9 +340,9 @@ function main(){
 	})
 	
     //loader('model/P2_model_ChessPiecesandBoardDone.json' , load_model_to_buffers);
-	Scene.load('model/P2_model_ChessPiecesandBoardDone.json' , Scene.loadModels);
-	Scene.load('model/texCube.json' , Scene.loadCube);
-	Scene.load('model.json' , function(m){
+	Scene.load('/model/P2_model_ChessPiecesandBoardDone.json' , Scene.loadModels);
+	Scene.load('/model/texCube.json' , Scene.loadCube);
+	Scene.load('/model.json' , function(m){
 		Scene.wizard = [];
 		
 		m.meshes.forEach(function(model , i )				{
@@ -397,8 +396,8 @@ function main(){
 	
 	
 	
-	Texture.init(["textures/board.png" , "textures/ASHSEN_2.GIF" , "textures/ASHSEN_2BUMP.gif"])
-	Texture.cubeMapTexture(["Skybox/spire_rt.png" , "Skybox/spire_lf.png" , "Skybox/spire_ft.png" , "Skybox/spire_bk.png" , "Skybox/spire_dn.png" , "Skybox/spire_up.png"]);
+	Texture.init(["/textures/board.png" , "/textures/ASHSEN_2.GIF" , "/textures/ASHSEN_2BUMP.gif"])
+	Texture.cubeMapTexture(["/Skybox/spire_rt.png" , "/Skybox/spire_lf.png" , "/Skybox/spire_ft.png" , "/Skybox/spire_bk.png" , "/Skybox/spire_dn.png" , "/Skybox/spire_up.png"]);
 	Scene.transforms.prg = shaderProgram;
 	console.log(Scene.transforms.prg);
 	//animationInit();
