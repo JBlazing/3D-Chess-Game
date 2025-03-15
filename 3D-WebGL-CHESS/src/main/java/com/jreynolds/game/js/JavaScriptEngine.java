@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class JavaScriptEngine {
@@ -23,7 +25,7 @@ public class JavaScriptEngine {
 
     private final String chessJs;
     private final String moveJs;
-    private final String completeSource;
+    private final String completeJs;
 
     private final Source chessJsSource;
     private final Context jsContext;
@@ -31,35 +33,38 @@ public class JavaScriptEngine {
                             @Value("${game.chess.move.js.location}") String moveJs) throws IOException, URISyntaxException {
         this.chessJs = Files.readString(Paths.get(getClass().getResource(chessJs).toURI()));
         this.moveJs = Files.readString(Paths.get(getClass().getResource(moveJs).toURI()));
-        this.completeSource = String.join("\n", this.chessJs, this.moveJs);
-        this.chessJsSource = Source.newBuilder("js", this.completeSource, "Chess.js").build();
+        this.completeJs = String.join("\n", this.chessJs, this.moveJs);
+        this.chessJsSource = Source.newBuilder("js", this.completeJs, "Chess.js").build();
 
-        this.jsContext = getContext();
-        this.jsContext.eval(this.chessJsSource);
+        this.jsContext = getContext(chessJsSource);
+
     }
 
 
     public Result move(Move move, String boardState)
     {
-        try{
-            var result = jsContext.getBindings("js")
+        try(Context context = getContext(chessJsSource)){
+            var res = context.getBindings("js")
                     .getMember("evalMove")
-                    .execute(move, boardState);
-            return result.as(Result.class);
+                    .execute(move, boardState).as(Result.class);
+            // TODO Copy History object correctly
+            return new Result(res.move(),Map.copyOf(res.moveResult()), res.boardState(), Map.of());
         }catch (Exception e){
             LOGGER.error(e.getMessage());
         }
         return null;
     }
 
+    private Context getContext(Source source) {
 
-
-    private Context getContext() {
-
-        return Context.newBuilder()
+        Context context = Context.newBuilder()
                 .allowHostAccess(HostAccess.ALL)
                 .allowHostClassLookup(className -> true)
                 .build();
+        context.eval(source);
+        context.getBindings("js").putMember("log", LOGGER);
+        return context;
+
 
 
     }

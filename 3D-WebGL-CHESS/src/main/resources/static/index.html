@@ -5,7 +5,6 @@
 <!-- JavaScript Libraries //-->
 <script type='text/javascript' src='/static/js/gl-matrix-min.js'></script>
 
-<script type='text/javascript' src='/static/js/loader.js'></script>
 <script type='text/javascript' src='/static/js/utils.js'></script>
 <script type='text/javascript' src='/static/js/webgl-utils.js'></script>
 <script type='text/javascript' src='/static/js/Camera.js'></script>
@@ -67,90 +66,108 @@ var curMove = 0;
 var allMoves = null;
 var gameId = '123';
 
-function getGameId(){
-    let id = fetch("/game/start", {
+async function getGameId(){
+    fetch("/game/start", {
         method: "GET",
     })
     .then(re => re.text())
-    .then(data => data)
-    console.log(id.valueOf());
-    return id.valueOf()
-
+    .then(data => gameId = data);
 }
 
 async function postMove(move){
-    const path = `/${gameId}/move`
-    const response = await fetch(path , {
+    console.log(JSON.stringify(move))
+    const path = `/game/${gameId}/move`
+    await fetch(path , {
         method: "POST",
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(move)
-    }).then(re => re.json())
-    .then(re => re);
-    console.log(response)
-    return response
+    })
+    .then(re => re.json())
+    .then(re => {
+        console.log(re)
+        createAnime(re.move, re.moveResult)
+    }).then(re => getOppMove());
+}
+
+function getOppMove(move){
+    console.log(JSON.stringify(move))
+    const path = `/game/${gameId}/opponents/move`
+    fetch(path , {
+        method: "GET",
+    })
+        .then(re => re.json())
+        .then(re => {
+            console.log(re)
+            createAnime(re.move, re.moveResult)
+        });
 }
 
 function move(from, to){
-	
-	let move = postMove({from: from , to: to})//chess.move({from: from , to: to})
-	console.log(move)
-	if(move){
-		try{
-			chess.move(move)
-			//make the capurted piece invisible when captured
-			
-			if(move.hasOwnProperty("captured")){
-			
-				let scn  = Scene.objects.filter(obj => obj.cord == to)[0];
-				scn.isVisible = false;
-				scn.cord = ""
-			}
-			
-			/*
-				Check for a castle move and then move the rook acordinay
-			*/
-			
-			if(move.hasOwnProperty("san") && (move.san == "O-O" || move.san == "O-O-O")){
-				if(move.to == "g1"){
-					let a =  Scene.objects.filter(x => x.cord == "h1")[0];
-					a.animation = Animation.createAnimation(a.location , Pos[a.name]["f1"])
-					a.cord = "f1";
-					
-				}
-				else if(move.to == "c1"){
-					let a =  Scene.objects.filter(x => x.cord == "a1")[0];
-					a.animation = Animation.createAnimation(a.location , Pos[a.name]["d1"])
-				
-				}
-				else if(move.to == "g8"){
-					let a =  Scene.objects.filter(x => x.cord == "h8")[0];
-					a.animation = Animation.createAnimation(a.location , Pos[a.name]["f8"])
-				
-				}
-				else if(move.to == "c8"){
-					let a =  Scene.objects.filter(x => x.cord == "a8")[0];
-					a.animation = Animation.createAnimation(a.location , Pos[a.name]["d8"])
-				
-				}
-			}
-			
-			let obj = Scene.objects.filter( obj => obj.cord == from)[0]
-			
-			obj.cord = to;
-			console.log(Pos[obj.name])
-			let end = Pos[obj.name][to];
-			
-			let postions = Animation.createAnimation(obj.location , end);
-
-			console.log(postions[postions.length - 1]);
-
-			obj.animation = postions;
-			clearMoves();
-		}
-		catch(err){
-			console.log(err);
-		}
-	}
+    postMove({from: from , to: to})//chess.move({from: from , to: to})
 }
+function createAnime(localMove,move){
+    if(move){
+        try{
+            chess.move(localMove)
+            //make the capurted piece invisible when captured
+
+            if(localMove.hasOwnProperty("captured")){
+
+                let scn  = Scene.objects.filter(obj => obj.cord == to)[0];
+                scn.isVisible = false;
+                scn.cord = ""
+            }
+
+            /*
+                Check for a castle move and then move the rook acordinay
+            */
+
+            if(localMove.hasOwnProperty("san") && (localMove.san == "O-O" || localMove.san == "O-O-O")){
+                if(localMove.to == "g1"){
+                    let a =  Scene.objects.filter(x => x.cord == "h1")[0];
+                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["f1"])
+                    a.cord = "f1";
+
+                }
+                else if(localMove.to == "c1"){
+                    let a =  Scene.objects.filter(x => x.cord == "a1")[0];
+                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["d1"])
+
+                }
+                else if(localMove.to == "g8"){
+                    let a =  Scene.objects.filter(x => x.cord == "h8")[0];
+                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["f8"])
+
+                }
+                else if(localMove.to == "c8"){
+                    let a =  Scene.objects.filter(x => x.cord == "a8")[0];
+                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["d8"])
+
+                }
+            }
+
+            let obj = Scene.objects.filter( obj => obj.cord == localMove.from)[0]
+
+            obj.cord = localMove.to;
+            console.log(Pos[obj.name])
+            let end = Pos[obj.name][localMove.to];
+
+            let postions = Animation.createAnimation(obj.location , end);
+
+            console.log(postions[postions.length - 1]);
+
+            obj.animation = postions;
+            clearMoves();
+        }
+        catch(err){
+            console.log(err);
+        }
+    }
+}
+
 
 function showMoves(from){
 
@@ -330,7 +347,7 @@ function initSkybox(attrList , uniformList){
 function main(){
 
 	chess = new Chess();
-    gameId = getGameId();
+    getGameId();
     utils.initGL(document.getElementById("canvas"))
 
     utils.initShaders();

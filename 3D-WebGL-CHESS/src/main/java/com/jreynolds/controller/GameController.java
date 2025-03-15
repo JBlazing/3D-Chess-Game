@@ -3,6 +3,7 @@ package com.jreynolds.controller;
 
 import com.jreynolds.game.service.GameService;
 import com.jreynolds.model.Move;
+import com.jreynolds.model.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -24,12 +25,12 @@ public class GameController {
     }
 
     @PostMapping("{gameId}/move")
-    public Map<String,String> move(@PathVariable("gameId") UUID gameId, @RequestBody Move move){
+    public Result move(@PathVariable("gameId") UUID gameId, @RequestBody Move move){
         return gameService.move(gameId,move);
     }
 
     @GetMapping("{gameId}/opponents/move")
-    public Map<String,String> move(@PathVariable("gameId") UUID gameId){
+    public Result move(@PathVariable("gameId") UUID gameId){
         return gameService.move(gameId,null);
     }
 

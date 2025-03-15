@@ -1,10 +1,7 @@
 
 function AI(){
 	
-	let moves = chess.moves({verbose: true});
-	
-	let p = Math.floor(Math.random() * (moves.length+1))
-	let mv = moves[p];
+
 	move(mv.from , mv.to);
 	
 	

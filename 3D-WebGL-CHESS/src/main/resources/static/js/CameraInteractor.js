@@ -148,7 +148,7 @@ CameraInteractor.prototype.onKeyDown = function(ev){
 			let mv = allMoves[curMove];
 			console.log(mv);
 			move(mv.from , mv.to);
-			AI();
+
 			//rootMiniMax(3 ,-9999 , 9999);
 			
 			
