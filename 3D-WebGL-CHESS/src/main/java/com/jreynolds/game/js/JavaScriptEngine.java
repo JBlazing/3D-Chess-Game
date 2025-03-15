@@ -3,6 +3,10 @@ package com.jreynolds.game.js;
 import com.jreynolds.model.Move;
 import com.jreynolds.model.Result;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.Source;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,25 +18,38 @@ import java.nio.file.Paths;
 @Component
 public class JavaScriptEngine {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(JavaScriptEngine.class);
     private final static String allowedClasses = "com.jreynolds.game.model(.*)";
 
     private final String chessJs;
     private final String moveJs;
+    private final String completeSource;
 
+    private final Source chessJsSource;
+    private final Context jsContext;
     public JavaScriptEngine(@Value("${game.chess.js.location}") String chessJs,
                             @Value("${game.chess.move.js.location}") String moveJs) throws IOException, URISyntaxException {
         this.chessJs = Files.readString(Paths.get(getClass().getResource(chessJs).toURI()));
-        this.moveJs = "(" + Files.readString(Paths.get(getClass().getResource(moveJs).toURI())) + ")";
+        this.moveJs = Files.readString(Paths.get(getClass().getResource(moveJs).toURI()));
+        this.completeSource = String.join("\n", this.chessJs, this.moveJs);
+        this.chessJsSource = Source.newBuilder("js", this.completeSource, "Chess.js").build();
+
+        this.jsContext = getContext();
+        this.jsContext.eval(this.chessJsSource);
     }
 
 
     public Result move(Move move, String boardState)
     {
-        try(Context context = getContext()){
-
-            org.graalvm.polyglot.Value compiled = context.eval("js", moveJs);
-            return compiled.execute(move, boardState).as(Result.class);
+        try{
+            var result = jsContext.getBindings("js")
+                    .getMember("evalMove")
+                    .execute(move, boardState);
+            return result.as(Result.class);
+        }catch (Exception e){
+            LOGGER.error(e.getMessage());
         }
+        return null;
     }
 
 
@@ -40,9 +57,8 @@ public class JavaScriptEngine {
     private Context getContext() {
 
         return Context.newBuilder()
-                .allowHostClassLookup(className -> className.matches(allowedClasses) )
-                .allowExperimentalOptions(true)
-                .option("js.nashorn-compat", "true")
+                .allowHostAccess(HostAccess.ALL)
+                .allowHostClassLookup(className -> true)
                 .build();
 
 

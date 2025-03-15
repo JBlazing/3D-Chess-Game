@@ -5,11 +5,9 @@ import com.jreynolds.game.cache.GameStateCache;
 import com.jreynolds.game.js.JavaScriptEngine;
 import com.jreynolds.model.Move;
 import com.jreynolds.model.Result;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
