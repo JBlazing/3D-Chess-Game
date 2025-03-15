@@ -7,17 +7,45 @@
     <artifactId>3D-WebGL-CHESS</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
+    <properties>
+        <spring.boot.version>3.4.3</spring.boot.version>
+        <graaljs.version>24.1.0</graaljs.version>
+        <caffiene.version>3.1.8</caffiene.version>
+    </properties>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.3</version>
+        <version>${spring.boot.version}</version>
     </parent>
 
     <!-- Additional lines to be added here... -->
     <dependencies>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <version>${spring.boot.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>polyglot</artifactId>
+            <version>${graaljs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>js</artifactId>
+            <version>${graaljs.version}</version>
+            <type>pom</type>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffiene.version}</version>
+        </dependency>
+
+
     </dependencies>
 </project>

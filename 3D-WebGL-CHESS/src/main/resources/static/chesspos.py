@@ -35,7 +35,7 @@ for i in range(0,8):
 		
 		key = "{}{}".format(coord,8-i)
 		
-		js[key] = tmp;
+		js[key] = tmp
 		
 		
 			

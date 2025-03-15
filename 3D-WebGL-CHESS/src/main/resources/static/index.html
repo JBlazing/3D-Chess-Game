@@ -3,19 +3,19 @@
 <meta http-equiv='content-type' content='text/html; charset=ISO-8859-1'>
 
 <!-- JavaScript Libraries //-->
-<script type='text/javascript' src='js/gl-matrix-min.js'></script>
+<script type='text/javascript' src='/static/js/gl-matrix-min.js'></script>
 
-<script type='text/javascript' src='/js/loader.js'></script>
-<script type='text/javascript' src='/js/utils.js'></script>
-<script type='text/javascript' src='/js/webgl-utils.js'></script>
-<script type='text/javascript' src='/js//Camera.js'></script>
-<script type='text/javascript' src='/js/CameraInteractor.js'></script>
-<script type='text/javascript' src='/js/SceneTransforms.js'></script>
-<script type='text/javascript' src='/js/Scene.js'></script>
-<script type='text/javascript' src='/js/Chess.js'></script>
-<script type='text/javascript' src='/js/Textures.js'></script>
-<script type='text/javascript' src='/js/Animation.js'></script>
-<script type='text/javascript' src='/js/AI.js'></script>
+<script type='text/javascript' src='/static/js/loader.js'></script>
+<script type='text/javascript' src='/static/js/utils.js'></script>
+<script type='text/javascript' src='/static/js/webgl-utils.js'></script>
+<script type='text/javascript' src='/static/js/Camera.js'></script>
+<script type='text/javascript' src='/static/js/CameraInteractor.js'></script>
+<script type='text/javascript' src='/static/js/SceneTransforms.js'></script>
+<script type='text/javascript' src='/static/js/Scene.js'></script>
+<script type='text/javascript' src='/static/js/Chess.js'></script>
+<script type='text/javascript' src='/static/js/Textures.js'></script>
+<script type='text/javascript' src='/static/js/Animation.js'></script>
+<script type='text/javascript' src='/static/js/AI.js'></script>
 
 
 </head>
@@ -65,14 +65,37 @@ var chess = null;
 
 var curMove = 0;
 var allMoves = null;
+var gameId = '123';
+
+function getGameId(){
+    let id = fetch("/game/start", {
+        method: "GET",
+    })
+    .then(re => re.text())
+    .then(data => data)
+    console.log(id.valueOf());
+    return id.valueOf()
+
+}
+
+async function postMove(move){
+    const path = `/${gameId}/move`
+    const response = await fetch(path , {
+        method: "POST",
+        body: JSON.stringify(move)
+    }).then(re => re.json())
+    .then(re => re);
+    console.log(response)
+    return response
+}
 
 function move(from, to){
 	
-	let move = chess.move({from: from , to: to})
+	let move = postMove({from: from , to: to})//chess.move({from: from , to: to})
 	console.log(move)
-	if(move != null){
+	if(move){
 		try{
-			
+			chess.move(move)
 			//make the capurted piece invisible when captured
 			
 			if(move.hasOwnProperty("captured")){
@@ -307,6 +330,7 @@ function initSkybox(attrList , uniformList){
 function main(){
 
 	chess = new Chess();
+    gameId = getGameId();
     utils.initGL(document.getElementById("canvas"))
 
     utils.initShaders();
@@ -339,10 +363,10 @@ function main(){
 		boxPos = JSON.parse(box);
 	})
 	
-    //loader('model/P2_model_ChessPiecesandBoardDone.json' , load_model_to_buffers);
-	Scene.load('/model/P2_model_ChessPiecesandBoardDone.json' , Scene.loadModels);
-	Scene.load('/model/texCube.json' , Scene.loadCube);
-	Scene.load('/model.json' , function(m){
+
+	Scene.load('/static/model/P2_model_ChessPiecesandBoardDone.json' , Scene.loadModels);
+	Scene.load('/static/model/texCube.json' , Scene.loadCube);
+	Scene.load('/static/model.json' , function(m){
 		Scene.wizard = [];
 		
 		m.meshes.forEach(function(model , i )				{
@@ -396,8 +420,8 @@ function main(){
 	
 	
 	
-	Texture.init(["/textures/board.png" , "/textures/ASHSEN_2.GIF" , "/textures/ASHSEN_2BUMP.gif"])
-	Texture.cubeMapTexture(["/Skybox/spire_rt.png" , "/Skybox/spire_lf.png" , "/Skybox/spire_ft.png" , "/Skybox/spire_bk.png" , "/Skybox/spire_dn.png" , "/Skybox/spire_up.png"]);
+	Texture.init(["/static/textures/board.png" , "/static/textures/ASHSEN_2.GIF" , "/static/textures/ASHSEN_2BUMP.gif"])
+	Texture.cubeMapTexture(["/static/Skybox/spire_rt.png" , "/static/Skybox/spire_lf.png" , "/static/Skybox/spire_ft.png" , "/static/Skybox/spire_bk.png" , "/static/Skybox/spire_dn.png" , "/static/Skybox/spire_up.png"]);
 	Scene.transforms.prg = shaderProgram;
 	console.log(Scene.transforms.prg);
 	//animationInit();
