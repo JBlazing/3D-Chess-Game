@@ -5,10 +5,8 @@ import com.jreynolds.game.service.GameService;
 import com.jreynolds.model.Move;
 import com.jreynolds.model.Result;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController

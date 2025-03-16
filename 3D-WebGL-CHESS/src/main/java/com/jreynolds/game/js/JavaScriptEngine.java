@@ -14,7 +14,10 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.*;
 
 @Component
 public class JavaScriptEngine {
@@ -22,31 +25,45 @@ public class JavaScriptEngine {
     private static final Logger LOGGER = LoggerFactory.getLogger(JavaScriptEngine.class);
 
     private final Source chessJsSource;
-
+    private final ExecutorService executor;
+    private final Duration executorTimeout;
     public JavaScriptEngine(@Value("${game.chess.js.location}") String chessJs,
-                            @Value("${game.chess.move.js.location}") String moveJs) throws IOException, URISyntaxException {
+                            @Value("${game.chess.move.js.location}") String moveJs,
+                            @Value("${game.chess.engine.executor.timeout:PT5S}") Duration executorTimeout) throws IOException, URISyntaxException {
         chessJs = Files.readString(Paths.get(getClass().getResource(chessJs).toURI()));
         moveJs = Files.readString(Paths.get(getClass().getResource(moveJs).toURI()));
 
         String completeJs = String.join("\n", chessJs, moveJs);
 
         this.chessJsSource = Source.newBuilder("js", completeJs, "Chess.js").build();
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        this.executorTimeout = executorTimeout;
     }
 
 
-    public Result move(Move move, String boardState)
+    public Optional<Result> move(Move move, String boardState)
     {
-        try(Context context = getContext(chessJsSource)){
-            var res = context.getBindings("js")
-                    .getMember("evalMove")
-                    .execute(move, boardState)
-                    .as(Result.class);
-            // TODO Copy History object correctly
-            return new Result(res.move(),Map.copyOf(res.moveResult()), res.boardState(), Map.of());
-        }catch (Exception e){
-            LOGGER.error(e.getMessage());
+        Future<Optional<Result>> submit = executor.submit(() -> {
+            try (Context context = getContext(chessJsSource)) {
+                var res = context.getBindings("js")
+                        .getMember("evalMove")
+                        .execute(move, boardState)
+                        .as(Result.class);
+                // TODO Copy History object correctly
+                return Optional.of(new Result(res.move(), Map.copyOf(res.moveResult()), res.boardState(), Map.of()));
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+            }
+            return Optional.empty();
+        });
+        Optional<Result> result = Optional.empty();
+        try {
+            result = submit.get(executorTimeout.toSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | TimeoutException | ExecutionException e) {
+            LOGGER.error("Move was not completed in time {}", e.getMessage());
+            submit.cancel(true);
         }
-        return null;
+        return result;
     }
 
     private Context getContext(Source source) {

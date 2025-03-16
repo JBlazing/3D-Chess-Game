@@ -2,7 +2,6 @@ package com.jreynolds.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
-import java.util.List;
 import java.util.Map;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
