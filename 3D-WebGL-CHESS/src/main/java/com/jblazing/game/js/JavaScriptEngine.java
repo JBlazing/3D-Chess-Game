@@ -1,7 +1,7 @@
-package com.jreynolds.game.js;
+package com.jblazing.game.js;
 
-import com.jreynolds.model.Move;
-import com.jreynolds.model.Result;
+import com.jblazing.model.Move;
+import com.jblazing.model.Result;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Source;

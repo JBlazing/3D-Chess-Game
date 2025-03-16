@@ -1,4 +1,4 @@
-package com.jreynolds.model;
+package com.jblazing.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 

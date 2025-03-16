@@ -1,12 +1,12 @@
-package com.jreynolds.controller;
+package com.jblazing.controller;
 
 
-import com.jreynolds.game.cache.GameStateCache;
-import com.jreynolds.game.service.GameService;
-import com.jreynolds.model.GameStart;
-import com.jreynolds.model.GameState;
-import com.jreynolds.model.Move;
-import com.jreynolds.model.Result;
+import com.jblazing.game.cache.GameStateCache;
+import com.jblazing.game.service.GameService;
+import com.jblazing.model.GameStart;
+import com.jblazing.model.GameState;
+import com.jblazing.model.Move;
+import com.jblazing.model.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 

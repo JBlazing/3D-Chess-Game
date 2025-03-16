@@ -9,7 +9,7 @@ function evalMove(playerMove, currentBoardState) {
         let moves = game.moves({verbose: true});
         let p = Math.floor(Math.random() * (moves.length+1))
         move = moves[p];
-        playerMove = new (Java.type("com.jreynolds.model.Move"))(move.from,move.to)
+        playerMove = new (Java.type("com.jblazing.model.Move"))(move.from,move.to)
     }
     log.info(playerMove.toString())
     log.info(JSON.stringify(move));
@@ -18,7 +18,7 @@ function evalMove(playerMove, currentBoardState) {
     log.info(JSON.stringify(result));
     const newBoardState = game.fen();
     const history = game.history({verbose: true});
-    const resultClass = Java.type("com.jreynolds.model.Result")
+    const resultClass = Java.type("com.jblazing.model.Result")
 
     return (playerMove) ? new resultClass(playerMove, result, newBoardState, history[0]) : null;
 }

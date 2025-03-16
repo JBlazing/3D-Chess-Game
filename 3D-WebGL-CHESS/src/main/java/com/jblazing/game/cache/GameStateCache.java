@@ -1,6 +1,6 @@
-package com.jreynolds.game.cache;
+package com.jblazing.game.cache;
 
-import com.jreynolds.model.GameState;
+import com.jblazing.model.GameState;
 
 import java.util.Optional;
 import java.util.UUID;

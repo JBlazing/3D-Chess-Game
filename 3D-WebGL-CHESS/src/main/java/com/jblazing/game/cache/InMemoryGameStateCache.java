@@ -1,8 +1,8 @@
-package com.jreynolds.game.cache;
+package com.jblazing.game.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.jreynolds.model.GameState;
+import com.jblazing.model.GameState;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

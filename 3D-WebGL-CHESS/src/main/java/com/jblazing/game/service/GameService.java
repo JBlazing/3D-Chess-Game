@@ -1,11 +1,11 @@
-package com.jreynolds.game.service;
+package com.jblazing.game.service;
 
 
-import com.jreynolds.game.cache.GameStateCache;
-import com.jreynolds.game.js.JavaScriptEngine;
-import com.jreynolds.model.GameState;
-import com.jreynolds.model.Move;
-import com.jreynolds.model.Result;
+import com.jblazing.game.cache.GameStateCache;
+import com.jblazing.game.js.JavaScriptEngine;
+import com.jblazing.model.GameState;
+import com.jblazing.model.Move;
+import com.jblazing.model.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
