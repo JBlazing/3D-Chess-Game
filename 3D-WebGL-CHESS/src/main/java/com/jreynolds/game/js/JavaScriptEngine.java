@@ -44,17 +44,21 @@ public class JavaScriptEngine {
     public Optional<Result> move(Move move, String boardState)
     {
         Future<Optional<Result>> submit = executor.submit(() -> {
+            Optional<Result> resultOpt = Optional.empty();
             try (Context context = getContext(chessJsSource)) {
                 var res = context.getBindings("js")
                         .getMember("evalMove")
-                        .execute(move, boardState)
-                        .as(Result.class);
-                // TODO Copy History object correctly
-                return Optional.of(new Result(res.move(), Map.copyOf(res.moveResult()), res.boardState(), Map.of()));
+                        .execute(move, boardState);
+
+                if(!res.isNull()){
+                    Result result = res.as(Result.class);
+                    // TODO Copy History object correctly
+                    resultOpt = Optional.of(new Result(result.move(), Map.copyOf(result.moveResult()), result.boardState(), Map.of()));
+                }
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
             }
-            return Optional.empty();
+            return resultOpt;
         });
         Optional<Result> result = Optional.empty();
         try {

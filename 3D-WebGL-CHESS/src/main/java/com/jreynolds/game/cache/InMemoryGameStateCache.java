@@ -2,6 +2,7 @@ package com.jreynolds.game.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.jreynolds.model.GameState;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,7 +12,7 @@ import java.util.UUID;
 @Component
 public class InMemoryGameStateCache implements GameStateCache {
 
-    private final Cache<UUID,String> gameStateCache;
+    private final Cache<UUID, GameState> gameStateCache;
 
 
     public InMemoryGameStateCache(@Value("${game.state.cache.duration:PT5M}") Duration duration) {
@@ -21,12 +22,12 @@ public class InMemoryGameStateCache implements GameStateCache {
     }
 
     @Override
-    public void storeGameState(UUID gameId, String state) {
+    public void storeGameState(UUID gameId, GameState state) {
         gameStateCache.put(gameId, state);
     }
 
     @Override
-    public String getGameState(UUID gameId) {
+    public GameState getGameState(UUID gameId) {
        return gameStateCache.getIfPresent(gameId);
     }
 

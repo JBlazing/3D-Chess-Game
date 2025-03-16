@@ -65,18 +65,26 @@ var chess = null;
 var curMove = 0;
 var allMoves = null;
 var gameId = '123';
+var playerId = "";
+var moveLock = false;
+var startingColor = "WHITE";
 
 async function getGameId(){
-    fetch("/game/start", {
+    const params = new URLSearchParams()
+    params.append("startingSide", startingColor)
+    fetch(`/game/start?${params}`, {
         method: "GET",
     })
-    .then(re => re.text())
-    .then(data => gameId = data);
+    .then(re => re.json())
+    .then(data => {
+        gameId = data.gameId;
+        playerId = data.playerId;
+    });
 }
 
 async function postMove(move){
     console.log(JSON.stringify(move))
-    const path = `/game/${gameId}/move`
+    const path = `/game/${gameId}/move/${playerId}`
     await fetch(path , {
         method: "POST",
         headers: {
@@ -88,7 +96,7 @@ async function postMove(move){
     .then(re => re.json())
     .then(re => {
         console.log(re)
-        createAnime(re.move, re.moveResult)
+        createAnime(re.move, re.moveResult);
     }).then(re => getOppMove());
 }
 
@@ -102,6 +110,7 @@ function getOppMove(move){
         .then(re => {
             console.log(re)
             createAnime(re.move, re.moveResult)
+            allMoves = chess.moves({verbose : true});
         });
 }
 
@@ -174,9 +183,7 @@ function showMoves(from){
 	let moves = chess.moves({'square' : from , verbose : true })
 	console.log(moves);
 	moves.forEach(function(move){
-	
 		let boxes = Scene.boxs.filter(x => x.name == move.to)
-		//console.log(boxes);
 		boxes.forEach(b => b.isVisible = true);
 		
 	})

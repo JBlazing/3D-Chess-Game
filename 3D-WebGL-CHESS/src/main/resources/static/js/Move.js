@@ -20,5 +20,5 @@ function evalMove(playerMove, currentBoardState) {
     const history = game.history({verbose: true});
     const resultClass = Java.type("com.jreynolds.model.Result")
 
-    return new resultClass(playerMove, result, newBoardState, history);
+    return (playerMove) ? new resultClass(playerMove, result, newBoardState, history[0]) : null;
 }
