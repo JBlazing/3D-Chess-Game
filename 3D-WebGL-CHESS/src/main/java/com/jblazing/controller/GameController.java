@@ -1,30 +1,26 @@
 package com.jblazing.controller;
 
 
-import com.jblazing.game.cache.GameStateCache;
 import com.jblazing.game.service.GameService;
 import com.jblazing.model.GameStart;
-import com.jblazing.model.GameState;
 import com.jblazing.model.Move;
 import com.jblazing.model.Result;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/game")
+@AllArgsConstructor
 public class GameController {
 
     private static final String BLACK = "black";
     private static final String COMPUTER = "COMPUTER";
 
-    @Autowired
     GameService gameService;
-    @Autowired
-    GameStateCache gameStateCache;
+
     @GetMapping("start")
     public GameStart startGame(@RequestParam String startingSide) {
         UUID gameId = UUID.randomUUID();

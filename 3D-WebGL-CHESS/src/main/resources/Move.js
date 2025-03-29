@@ -20,5 +20,5 @@ function evalMove(playerMove, currentBoardState) {
     const history = game.history({verbose: true});
     const resultClass = Java.type("com.jblazing.model.Result")
 
-    return (playerMove) ? new resultClass(playerMove, result, newBoardState, history[0]) : null;
+    return (result) ? new resultClass(playerMove, result, newBoardState, history[0]) : null;
 }

@@ -30,6 +30,7 @@ public class JavaScriptEngine {
     public JavaScriptEngine(@Value("${game.chess.js.location}") String chessJs,
                             @Value("${game.chess.move.js.location}") String moveJs,
                             @Value("${game.chess.engine.executor.timeout:PT5S}") Duration executorTimeout) throws IOException, URISyntaxException {
+
         chessJs = Files.readString(Paths.get(getClass().getResource(chessJs).toURI()));
         moveJs = Files.readString(Paths.get(getClass().getResource(moveJs).toURI()));
 
