@@ -1,6 +1,7 @@
 package com.jblazing.controller;
 
 
+import com.jblazing.game.cache.GameStateCache;
 import com.jblazing.game.service.GameService;
 import com.jblazing.model.GameStart;
 import com.jblazing.model.Move;
@@ -20,6 +21,7 @@ public class GameController {
     private static final String COMPUTER = "COMPUTER";
 
     GameService gameService;
+    GameStateCache gameStateCache;
 
     @GetMapping("start")
     public GameStart startGame(@RequestParam String startingSide) {
