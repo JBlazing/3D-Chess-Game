@@ -13,7 +13,22 @@
         <graaljs.version>24.1.0</graaljs.version>
         <caffiene.version>3.1.8</caffiene.version>
         <loombok.version>1.18.36</loombok.version>
+        <embedded.postgres.version>2.1.0</embedded.postgres.version>
+        <embedded.postgres.binaries.version>16.4.0</embedded.postgres.binaries.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- PostgreSQL server binaries for the tests' embedded database -->
+            <dependency>
+                <groupId>io.zonky.test.postgres</groupId>
+                <artifactId>embedded-postgres-binaries-bom</artifactId>
+                <version>${embedded.postgres.binaries.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -98,7 +113,27 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Tests: JUnit 5, AssertJ, Mockito, Spring test support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>${spring.boot.version}</version>
+            <scope>test</scope>
+        </dependency>
 
+        <!-- A real PostgreSQL server started by the tests, so database code is tested on PostgreSQL
+             as well as SQLite. Linux and macOS binaries come with it; Windows needs its own. -->
+        <dependency>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <version>${embedded.postgres.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
     <build>

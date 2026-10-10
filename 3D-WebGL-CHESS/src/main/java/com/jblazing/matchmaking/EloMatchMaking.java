@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -38,6 +39,7 @@ public class EloMatchMaking implements MatchMakingService {
     private final GameService gameService;
     private final UserAccountRepository userAccountRepository;
     private final Random random = new Random();
+    private final Clock clock;
 
     private final Map<String, Entry> queue = new LinkedHashMap<>();
     private final Map<String, Match> matches = new HashMap<>();
@@ -71,13 +73,19 @@ public class EloMatchMaking implements MatchMakingService {
     }
 
     public EloMatchMaking(GameService gameService, UserAccountRepository userAccountRepository) {
+        this(gameService, userAccountRepository, Clock.systemUTC());
+    }
+
+    /** With a given clock, so tests can let time pass without waiting. */
+    EloMatchMaking(GameService gameService, UserAccountRepository userAccountRepository, Clock clock) {
         this.gameService = gameService;
         this.userAccountRepository = userAccountRepository;
+        this.clock = clock;
     }
 
     @Override
     public synchronized QueueStatus joinQueue(Player player) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         matches.remove(player.id());
         Entry entry = queue.get(player.id());
         if (entry == null) {
@@ -99,7 +107,7 @@ public class EloMatchMaking implements MatchMakingService {
 
     @Override
     public synchronized QueueStatus status(Player player) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         Match match = matches.get(player.id());
         if (match != null) {
             return new QueueStatus("MATCHED", null, 0, 0, match.gameId(), match.color(), match.opponentName(), match.opponentRating());
@@ -120,7 +128,7 @@ public class EloMatchMaking implements MatchMakingService {
     /** Pairs whoever can be paired. Runs every second. */
     @Scheduled(fixedDelay = 1000)
     public synchronized void createGames() {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         queue.values().removeIf(e -> {
             boolean stale = Duration.between(e.lastSeen, now).compareTo(STALE_AFTER) > 0;
             if (stale) logger.info("{} dropped from the queue (stopped polling)", e.player.id());

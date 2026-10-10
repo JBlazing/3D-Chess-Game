@@ -1,0 +1,95 @@
+# HTTP sessions, stored by Spring Session JDBC so that a sign-in survives server restarts.
+# Same tables as Spring Session's own schema-sqlite.sql / schema-postgresql.sql; names are
+# lower case because PostgreSQL folds the unquoted names Spring Session uses to lower case.
+databaseChangeLog:
+  - changeSet:
+      id: 4-spring-session
+      author: jblazing
+      changes:
+        - createTable:
+            tableName: spring_session
+            columns:
+              - column:
+                  name: primary_id
+                  type: CHAR(36)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: spring_session_pk
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: CHAR(36)
+                  constraints:
+                    nullable: false
+              # times are epoch milliseconds, intervals seconds
+              - column:
+                  name: creation_time
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_access_time
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_inactive_interval
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expiry_time
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: principal_name
+                  type: VARCHAR(100)
+        - createIndex:
+            tableName: spring_session
+            indexName: spring_session_ix1
+            unique: true
+            columns:
+              - column:
+                  name: session_id
+        - createIndex:
+            tableName: spring_session
+            indexName: spring_session_ix2
+            columns:
+              - column:
+                  name: expiry_time
+        - createIndex:
+            tableName: spring_session
+            indexName: spring_session_ix3
+            columns:
+              - column:
+                  name: principal_name
+        - createTable:
+            tableName: spring_session_attributes
+            columns:
+              - column:
+                  name: session_primary_id
+                  type: CHAR(36)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: spring_session_attributes_pk
+                    nullable: false
+                    # attribute rows go with their session
+                    foreignKeyName: spring_session_attributes_fk
+                    referencedTableName: spring_session
+                    referencedColumnNames: primary_id
+                    deleteCascade: true
+              - column:
+                  name: attribute_name
+                  type: VARCHAR(200)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: spring_session_attributes_pk
+                    nullable: false
+              # serialized attribute value: BYTEA on PostgreSQL (Liquibase would turn BLOB into
+              # OID there, a large-object reference Spring Session can't write), BLOB elsewhere
+              - column:
+                  name: attribute_bytes
+                  type: ${bytes.type}
+                  constraints:
+                    nullable: false
