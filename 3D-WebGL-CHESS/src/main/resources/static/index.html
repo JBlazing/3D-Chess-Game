@@ -14,6 +14,7 @@
 <script type='text/javascript' src='/static/js/CameraInteractor.js'></script>
 <script type='text/javascript' src='/static/js/SceneTransforms.js'></script>
 <script type='text/javascript' src='/static/js/Scene.js'></script>
+<script type='text/javascript' src='/static/js/BoardClick.js'></script>
 <script type='text/javascript' src='/static/js/Chess.js'></script>
 <script type='text/javascript' src='/static/js/Textures.js'></script>
 <script type='text/javascript' src='/static/js/Animation.js'></script>
@@ -364,6 +365,7 @@ kbd {
 </aside>
 
 <div class='hint glass' aria-label='Controls'>
+    <span>Click a piece, then a square</span>
     <span><kbd>A</kbd> <kbd>D</kbd> cycle moves</span>
     <span><kbd>Enter</kbd> play</span>
     <span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> or drag to orbit</span>
@@ -504,6 +506,57 @@ function playSelected(){
     move(mv.from, mv.to, mv.promotion);
 }
 
+/* ---------- Clicking pieces ---------- */
+
+var selectedFrom = null;   // square of the piece picked by clicking, waiting for a destination
+
+function isOwnPiece(square){
+    const piece = square && chess.get(square);
+    return !!piece && piece.color === chess.turn();
+}
+
+function clickTarget(square){
+    if(!square || !canPlay()) return null;
+    if(selectedFrom && allMoves.some(m => m.from === selectedFrom && m.to === square)) return "destination";
+    if(isOwnPiece(square)) return "piece";
+    return null;
+}
+
+function clearSelection(){
+    selectedFrom = null;
+    clearMoves();
+}
+
+function onSquareClicked(square){
+    const target = clickTarget(square);
+    if(target === "destination"){
+        const mv = allMoves.find(m => m.from === selectedFrom && m.to === square);
+        clearSelection();
+        move(mv.from, mv.to, mv.promotion);
+        return;
+    }
+    if(target === "piece"){
+        clearMoves();
+        selectedFrom = square;
+        const piece = pieceAt(square);
+        if(piece) piece.Selected = true;
+        showMoves(square);
+        // keep the panel's move in step with the clicked piece
+        const first = allMoves.findIndex(m => m.from === square);
+        if(first >= 0) curMove = first;
+        refreshHud();
+        return;
+    }
+    if(selectedFrom){
+        clearSelection();
+        refreshHud();
+    }
+}
+
+function onSquareHovered(square){
+    document.getElementById("canvas").style.cursor = clickTarget(square) ? "pointer" : "";
+}
+
 function newGame(){
     window.location.reload();
 }
@@ -612,7 +665,6 @@ async function getGameId(){
     .then(data => {
         gameId = data.gameId;
         playerId = data.playerId;
-        highlightSelected();
         refreshHud();
     })
     .catch(err => {
@@ -663,7 +715,6 @@ function getOppMove(move){
             allMoves = playerMoves();
             curMove = 0;
             thinking = false;
-            highlightSelected();
             refreshHud();
         })
         .catch(moveFailed);
@@ -949,7 +1000,7 @@ function main(){
     utils.initGL(document.getElementById("canvas"))
     window.addEventListener("resize", resizeCanvas);
     // Keyboard controls live in CameraInteractor; keep the panel in sync with them
-    window.addEventListener("keydown", () => refreshHud());
+    window.addEventListener("keydown", () => { selectedFrom = null; refreshHud(); });
 
     utils.initShaders();
 	initSkybox(["aVertexPosition",
@@ -973,6 +1024,7 @@ function main(){
 					"uCubeSampler"
 					])
 	Scene.init();
+	BoardClick.init(document.getElementById("canvas"), onSquareClicked, onSquareHovered);
 	Scene.loadna('/chesspos.json' , function(chessPosition){
 		Pos = JSON.parse(chessPosition);
 		console.log(Pos)

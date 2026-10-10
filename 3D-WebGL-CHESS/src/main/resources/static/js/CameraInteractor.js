@@ -60,7 +60,7 @@ CameraInteractor.prototype.onMouseUp = function(ev){
     
     if (!ev.shiftKey){
         this.picking = false;
-        this.picker.stop();
+        if (this.picker) this.picker.stop();
     }
 }
 

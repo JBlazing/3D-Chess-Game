@@ -14,6 +14,7 @@ var Scene = {
 			this.camera.goHome([0,0,125]);
 			this.interactor = new CameraInteractor(this.camera , canvas);
 			this.camera.changeAzimuth(179);
+			this.camera.changeElevation(-50); // look down on the board so every square and pawn can be clicked
 			this.transforms = new SceneTransforms(this.camera);
 			this.transforms.init();
 			/*

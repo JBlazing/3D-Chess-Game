@@ -7,3 +7,6 @@
 /dataSources/
 /dataSources.local.xml
 /.idea/
+
+# Maven build output
+/3D-WebGL-CHESS/target/
