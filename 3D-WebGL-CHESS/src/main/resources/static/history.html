@@ -202,6 +202,28 @@ h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: 0.01em; }
 .when { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
 .meta { color: var(--muted); font-size: 13px; }
 .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.delta { font-weight: 600; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--win); }
+.delta.down { color: var(--loss); }
+.tag {
+    padding: 1px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+.title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.rating-pill {
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255, 122, 92, 0.16);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+.session-rating { padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--muted); font-size: 12px; }
 .btn-sm { height: 28px; padding: 0 12px; font-size: 12px; flex: none; }
 
 details { margin-top: 2px; }
@@ -272,14 +294,18 @@ summary:hover { color: var(--text); }
         <div id='session' class='session' hidden>
             <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
             <span id='sessionName' class='session-name'></span>
+            <span id='sessionRating' class='session-rating' title='Your rating' hidden></span>
             <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
         </div>
     </div>
 </header>
 
 <main class='page'>
-    <h1>Game history</h1>
-    <p class='sub'>Your games against the computer, most recent first.</p>
+    <div class='title-row'>
+        <h1>Game history</h1>
+        <span class='rating-pill' id='ratingPill' title='Your rating' hidden></span>
+    </div>
+    <p class='sub'>Your games, most recent first.</p>
 
     <section class='stats' id='stats' aria-label='Totals' hidden>
         <div class='stat'><div class='stat-value' id='statPlayed'>0</div><div class='stat-label'>Played</div></div>
@@ -338,19 +364,14 @@ function el(tag, className, text){
 }
 
 function resultOf(game){
-    if(game.status === "CHECKMATE") return game.winner === game.color ? "win" : "loss";
-    if(game.status === "STALEMATE" || game.status === "DRAW") return "draw";
-    return "open";
+    if(game.status === "IN_PROGRESS") return "open";
+    if(game.winner) return game.winner === game.color ? "win" : "loss";
+    return "draw";
 }
 
 function endingOf(game){
-    return { CHECKMATE: "Checkmate", STALEMATE: "Stalemate", DRAW: "Draw", IN_PROGRESS: "Not finished" }[game.status] || game.status;
-}
-
-function opponentName(key){
-    if(key === "COMPUTER") return "Computer";
-    if(key.startsWith("guest:")) return "Guest";
-    return "Another player";
+    return { CHECKMATE: "Checkmate", STALEMATE: "Stalemate", DRAW: "Draw", RESIGNED: "Resignation",
+             ABANDONED: "Abandoned", IN_PROGRESS: "Not finished" }[game.status] || game.status;
 }
 
 function capitalize(word){
@@ -425,8 +446,10 @@ function gameCard(game){
     head.appendChild(el("span", "badge " + result, RESULTS[result].label));
     const vs = el("span", "vs");
     vs.appendChild(el("span", "swatch " + game.color.toLowerCase()));
-    vs.appendChild(document.createTextNode(capitalize(game.color) + " vs " + opponentName(game.opponent)));
+    vs.appendChild(document.createTextNode(capitalize(game.color) + " vs " + game.opponentName
+        + (game.opponentRating != null ? " (" + game.opponentRating + ")" : "")));
     head.appendChild(vs);
+    if(game.rated) head.appendChild(el("span", "tag", "Rated"));
     const time = when(game.updatedAt);
     const stamp = el("time", "when", time.text);
     stamp.dateTime = game.updatedAt;
@@ -436,7 +459,13 @@ function gameCard(game){
 
     const fullMoves = Math.ceil(game.moveCount / 2);
     const metaRow = el("div", "meta-row");
-    metaRow.appendChild(el("div", "meta", endingOf(game) + " · " + fullMoves + (fullMoves === 1 ? " move" : " moves")));
+    const meta = el("div", "meta", endingOf(game) + " · " + fullMoves + (fullMoves === 1 ? " move" : " moves"));
+    if(game.ratingChange != null){
+        meta.appendChild(document.createTextNode(" · "));
+        meta.appendChild(el("span", game.ratingChange >= 0 ? "delta up" : "delta down",
+            (game.ratingChange >= 0 ? "+" : "") + game.ratingChange + " rating"));
+    }
+    metaRow.appendChild(meta);
     if(game.moveCount > 0){
         const replayLink = el("a", "btn btn-sm", "▶︎ Replay");
         replayLink.href = "/index?replay=" + encodeURIComponent(game.gameId);
@@ -515,7 +544,12 @@ function loadGames(){
     });
 }
 
-loadUser();
+loadUser().then(user => {
+    if(user && user.rating != null){
+        $id("ratingPill").textContent = "Rating " + user.rating;
+        $id("ratingPill").hidden = false;
+    }
+});
 loadGames();
 </script>
 </body>

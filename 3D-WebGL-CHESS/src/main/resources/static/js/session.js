@@ -18,16 +18,24 @@ function checkAuth(re){
     return re;
 }
 
+/** Fills in the account badge; resolves to the signed-in user, or null when signed out or sign-in is off. */
 function loadUser(){
-    fetch("/auth/user")
+    return fetch("/auth/user")
     .then(re => re.status === 200 ? re.json() : null)
     .then(user => {
-        if(!user) return;
+        if(!user) return null;
         document.getElementById("sessionName").textContent = user.name || user.email;
         const picture = document.getElementById("sessionPicture");
         if(user.picture) picture.src = user.picture; else picture.hidden = true;
+        const rating = document.getElementById("sessionRating");
+        if(rating && user.rating != null){
+            rating.textContent = user.rating;
+            rating.hidden = false;
+        }
         document.getElementById("session").hidden = false;
-    });
+        return user;
+    })
+    .catch(() => null);
 }
 
 function signOut(){

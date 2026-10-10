@@ -53,6 +53,23 @@ public class GameRecord {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** Rated games are between two signed-in players; never against the computer. */
+    @Column(nullable = false)
+    private boolean rated;
+
+    @Column(name = "white_rating")
+    private Integer whiteRating;
+
+    @Column(name = "black_rating")
+    private Integer blackRating;
+
+    /** How much each side's rating changed when the game ended; null until then. */
+    @Column(name = "white_rating_change")
+    private Integer whiteRatingChange;
+
+    @Column(name = "black_rating_change")
+    private Integer blackRatingChange;
+
     public GameRecord(String id, String whitePlayer, String blackPlayer, UserAccount whiteAccount, UserAccount blackAccount,
                       String status, String fen, Instant createdAt) {
         this.id = id;

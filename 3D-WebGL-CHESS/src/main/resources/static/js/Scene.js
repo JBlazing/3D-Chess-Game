@@ -277,14 +277,17 @@ var Scene = {
 						console.log(obj.location)
 						obj.location[1] = 0.0;
 						delete obj.animation 
+						// chained animations; the queue is normally empty, which used to throw here and cut the frame short
 						let animation = anime.shift();
-						let _obj = Scene.objects.filter( obj => obj.name == animation.name)[0]
-						let end = [_obj.location[0] + animation.trans[0] , 0.0 ,  _obj.location[2] + animation.trans[2]];
-						//console.log(end)
-						let postions = Animation.createAnimation(_obj.location , end);
-						
-						postions.pop();
-						_obj.animation = postions;
+						let _obj = animation && Scene.objects.filter( obj => obj.name == animation.name)[0]
+						if(_obj){
+							let end = [_obj.location[0] + animation.trans[0] , 0.0 ,  _obj.location[2] + animation.trans[2]];
+							//console.log(end)
+							let postions = Animation.createAnimation(_obj.location , end);
+
+							postions.pop();
+							_obj.animation = postions;
+						}
 					}
 					
 				}	

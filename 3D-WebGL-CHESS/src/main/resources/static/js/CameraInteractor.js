@@ -143,40 +143,16 @@ CameraInteractor.prototype.onKeyDown = function(ev){
             if(fovy) fovy-=5;
             console.info('FovY:'+fovy);
         }
+		// Enter / D / A go through the page's move selection, which only acts on your own turn:
+		// on an opponent's (or the computer's) turn the legal moves are theirs, not yours to cycle
 		else if (this.key == 13 ){
-			
-			let mv = allMoves[curMove];
-			console.log(mv);
-			move(mv.from , mv.to , mv.promotion);
-
-			//rootMiniMax(3 ,-9999 , 9999);
-			
-			
-
+			playSelected();
 		}
-		
 		else if(this.key == 68){ // d key
-			
-			curMove = (curMove + 1)
-			if(curMove >= allMoves.length)
-				curMove = 0;
-			let mv = allMoves[curMove];
-			
-			clearMoves();
-			showMove(mv.from , mv.to);
-			
-			
-			
+			selectMove(1);
 		}
 		else if(this.key == 65){ // a key
-			 
-			 curMove--;
-			 if(curMove < 0)
-				 curMove = allMoves.length - 1;
-			 let mv = allMoves[curMove]
-			 clearMoves()
-			 showMove(mv.from,mv.to);
-
+			selectMove(-1);
 		}
         
 	}

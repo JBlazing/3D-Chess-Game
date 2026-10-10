@@ -337,6 +337,125 @@ kbd {
 .result-title { margin: 14px 0 6px; font-size: 24px; }
 .result-detail { margin: 0 0 24px; color: var(--muted); }
 
+.result-actions { display: grid; gap: 8px; }
+.result-card { position: relative; }
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    font: 24px/1 system-ui, sans-serif;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+.close-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.close-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Side chooser ---- */
+.side-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.side-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.side-option:hover { background: rgba(255, 255, 255, 0.09); transform: translateY(-1px); }
+.side-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.side-option.current { border-color: rgba(255, 122, 92, 0.55); background: var(--accent-soft); }
+.side-piece { font-size: 40px; line-height: 1; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif; }
+.side-piece.random { display: flex; font-size: 30px; }
+.side-piece.random .pb { margin-left: -6px; }
+/* white pieces get a dark outline, black ones a light one, so both read on the dark card */
+.pw { color: #fffaf2; text-shadow: -1px 0 #3a2a1e, 1px 0 #3a2a1e, 0 -1px #3a2a1e, 0 1px #3a2a1e; }
+.pb { color: #24171f; text-shadow: -1px 0 rgba(255, 255, 255, 0.55), 1px 0 rgba(255, 255, 255, 0.55), 0 -1px rgba(255, 255, 255, 0.55), 0 1px rgba(255, 255, 255, 0.55); }
+
+/* ---- Online play ---- */
+.chooser-label {
+    margin: 16px 0 8px;
+    color: var(--faint);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+}
+.chooser-note { letter-spacing: 0; text-transform: none; font-weight: 500; }
+.chooser-warning {
+    margin: 0 0 4px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(255, 107, 107, 0.12);
+    color: #ffc9c9;
+    font-size: 13px;
+}
+.online-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 122, 92, 0.45);
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
+}
+.online-option:hover { background: rgba(255, 122, 92, 0.24); transform: translateY(-1px); }
+.online-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.online-icon { font-size: 28px; line-height: 1; color: var(--accent); }
+.online-text { display: flex; flex-direction: column; gap: 2px; }
+.online-sub { color: var(--muted); font-size: 12px; }
+
+.search-spinner {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.search-time { margin: -14px 0 20px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.result-rating { margin: -14px 0 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.result-rating .up { color: #6fd3a0; }
+.result-rating .down { color: #ff7b7b; }
+
+.claim { display: grid; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.btn-danger { color: #ffb4b4; }
+.btn-danger:hover:not(:disabled) { background: rgba(255, 107, 107, 0.16); }
+.btn-danger.confirm { background: #c94a4a; border-color: transparent; color: #fff; }
+.session-rating {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-spinner { animation-duration: 3s; }
+}
+
 /* ---- Small screens: panel becomes a bottom sheet ---- */
 @media (max-width: 720px) {
     /* scene on top, game sheet below */
@@ -370,6 +489,7 @@ kbd {
     <div id='session' class='session glass' hidden>
         <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
         <span id='sessionName' class='session-name'></span>
+        <span id='sessionRating' class='session-rating' title='Your rating' hidden></span>
         <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
     </div>
 </header>
@@ -390,6 +510,10 @@ kbd {
             </div>
         </div>
         <div class='status' id='status' role='status'><span class='dot'></span><span id='statusText'>Starting game&hellip;</span></div>
+        <div class='claim' id='claimBox' hidden>
+            <span id='claimText'>Your opponent seems to have left.</span>
+            <button type='button' class='btn btn-primary btn-block' onclick='claimWin()'>Claim the win</button>
+        </div>
     </section>
 
     <section class='section' id='replaySection' hidden>
@@ -438,7 +562,8 @@ kbd {
 
     <section class='section bottom-actions'>
         <a class='btn' id='backToHistory' href='/history' hidden>&larr; History</a>
-        <button type='button' class='btn btn-block' onclick='newGame()'>New game</button>
+        <button type='button' class='btn btn-danger' id='resignBtn' onclick='resign()' hidden>Resign</button>
+        <button type='button' class='btn btn-block' onclick='openSideChooser()'>New game</button>
     </section>
 </aside>
 
@@ -459,10 +584,53 @@ kbd {
 
 <div class='overlay' id='gameOver' hidden>
     <div class='result-card glass' role='dialog' aria-modal='true' aria-labelledby='resultTitle'>
+        <button type='button' class='close-btn' onclick='closeGameOver()' aria-label='Close and view the board'>&times;</button>
         <div class='result-crest' aria-hidden='true'>&#9818;</div>
         <h2 class='result-title' id='resultTitle'></h2>
         <p class='result-detail' id='resultDetail'></p>
-        <button type='button' class='btn btn-primary btn-block' onclick='newGame()'>Play again</button>
+        <p class='result-rating' id='resultRating' hidden></p>
+        <div class='result-actions'>
+            <button type='button' class='btn btn-primary btn-block' id='playAgain' onclick='playAgain()'>Play again</button>
+            <button type='button' class='btn btn-block' id='switchSide' onclick='switchSideOrComputer()'>Play as Black</button>
+        </div>
+    </div>
+</div>
+
+<div class='overlay' id='searching' hidden>
+    <div class='result-card glass' role='dialog' aria-modal='true' aria-labelledby='searchTitle'>
+        <div class='search-spinner' aria-hidden='true'></div>
+        <h2 class='result-title' id='searchTitle'>Finding an opponent</h2>
+        <p class='result-detail' id='searchDetail' role='status'>Joining the queue&hellip;</p>
+        <p class='search-time' id='searchTime'>0:00</p>
+        <button type='button' class='btn btn-block' onclick='cancelSearch()'>Cancel</button>
+    </div>
+</div>
+
+<div class='overlay' id='sideChooser' hidden>
+    <div class='result-card glass' role='dialog' aria-modal='true' aria-labelledby='chooserTitle'>
+        <h2 class='result-title' id='chooserTitle'>New game</h2>
+        <p class='chooser-warning' id='chooserWarning' hidden>Starting a new game resigns your current online game.</p>
+        <p class='chooser-label'>Online</p>
+        <button type='button' class='online-option' onclick='findOpponent()'>
+            <span class='online-icon' aria-hidden='true'>&#9876;&#xFE0E;</span>
+            <span class='online-text'>
+                <strong>Find an opponent</strong>
+                <span class='online-sub' id='onlineSub'>Rated &middot; matched by rating</span>
+            </span>
+        </button>
+        <p class='chooser-label'>Against the computer <span class='chooser-note'>&middot; unrated &middot; white moves first</span></p>
+        <div class='side-options'>
+            <button type='button' class='side-option' data-side='white' onclick='newGame("white")'>
+                <span class='side-piece pw' aria-hidden='true'>&#9818;&#xFE0E;</span>White
+            </button>
+            <button type='button' class='side-option' data-side='black' onclick='newGame("black")'>
+                <span class='side-piece pb' aria-hidden='true'>&#9818;&#xFE0E;</span>Black
+            </button>
+            <button type='button' class='side-option' data-side='random' onclick='newGame("random")'>
+                <span class='side-piece random' aria-hidden='true'><span class='pw'>&#9818;&#xFE0E;</span><span class='pb'>&#9818;&#xFE0E;</span></span>Random
+            </button>
+        </div>
+        <button type='button' class='btn btn-block' onclick='closeSideChooser()'>Cancel</button>
     </div>
 </div>
 
@@ -503,10 +671,13 @@ var chess = null;
 
 var curMove = 0;
 var allMoves = null;
-var gameId = '123';
+var gameId = null;           // set once the server has created the game
 var playerId = "";
 var moveLock = false;
-var startingColor = "WHITE";
+var playerColor = "w";       // the side you play: "w" or "b"
+var sideChoice = "white";    // what was picked: "white", "black" or "random"
+var viewingAsBlack = false;  // whether the camera has been turned to black's side
+var startCounter = 0;        // ignores the reply to a start request that a newer one replaced
 
 /* ---------- HUD ---------- */
 
@@ -530,7 +701,7 @@ function playerMoves(){
 }
 
 function canPlay(){
-    return !replay && !thinking && !chess.game_over() && chess.turn() === "w" && allMoves && allMoves.length > 0;
+    return !replay && gameId && !thinking && !chess.game_over() && chess.turn() === playerColor && allMoves && allMoves.length > 0;
 }
 
 function highlightSelected(){
@@ -609,9 +780,94 @@ function onSquareHovered(square){
     document.getElementById("canvas").style.cursor = clickTarget(square) ? "pointer" : "";
 }
 
-function newGame(){
-    // not reload(): from a replay that would just open the replay again
-    window.location.href = "/index";
+/* ---------- Choosing a side ---------- */
+
+const SIDE_KEY = "chess.side";
+
+function storedSide(){
+    try { return localStorage.getItem(SIDE_KEY); } catch(e){ return null; }
+}
+
+function rememberSide(choice){
+    try { localStorage.setItem(SIDE_KEY, choice); } catch(e){}
+}
+
+function validSide(choice){
+    return ["white", "black", "random"].includes(choice) ? choice : "white";
+}
+
+function openSideChooser(){
+    document.querySelectorAll(".side-option").forEach(b => b.classList.toggle("current", b.dataset.side === sideChoice));
+    $id("chooserWarning").hidden = !onlineInProgress();
+    $id("onlineSub").textContent = myRating != null
+        ? "Rated · your rating " + myRating + " · matched by rating"
+        : "Unrated · sign in to play rated games";
+    $id("gameOver").hidden = true;
+    $id("sideChooser").hidden = false;
+    (document.querySelector(".side-option.current") || document.querySelector(".side-option")).focus();
+}
+
+function closeSideChooser(){
+    $id("sideChooser").hidden = true;
+}
+
+// hides the result so the final position can be looked at; gameOverShown stays set so it doesn't reopen
+function closeGameOver(){
+    $id("gameOver").hidden = true;
+}
+
+// while a dialog is open, keys belong to it: stop the board's handlers (CameraInteractor, replay)
+// from acting on them, without preventing the dialog's buttons from responding to Enter/Space
+function dialogOpen(){
+    return !$id("sideChooser").hidden || !$id("gameOver").hidden || !$id("searching").hidden;
+}
+window.addEventListener("keydown", e => {
+    if(!dialogOpen()) return;
+    if(e.key === "Escape"){
+        if(!$id("searching").hidden) cancelSearch();
+        else if(!$id("sideChooser").hidden) closeSideChooser();
+        else closeGameOver();
+    }
+    e.stopImmediatePropagation();
+}, true);
+document.addEventListener("click", e => {
+    if(e.target === $id("sideChooser")) closeSideChooser();   // a click on the backdrop
+});
+
+/** Starts a new game as "white", "black" or "random"; from a replay this goes to the game page. */
+async function newGame(choice){
+    choice = validSide(choice);
+    rememberSide(choice);
+    if(replay){
+        window.location.href = "/index?side=" + choice;
+        return;
+    }
+    await resignOnlineGame();
+    startGame(choice);
+}
+
+/** Names the two sides from your point of view: you, and the opponent. */
+function applySideLabels(color, opponent, you){
+    const youAreWhite = color === "w";
+    you = you || "You";
+    $id("playerWhiteName").textContent = youAreWhite ? you : opponent;
+    $id("playerBlackName").textContent = youAreWhite ? opponent : you;
+    $id("capturedByWhiteLabel").textContent = youAreWhite ? "You" : "Rival";
+    $id("capturedByBlackLabel").textContent = youAreWhite ? "Rival" : "You";
+    // opponent on top, you at the bottom, the same way round as the board
+    $id("playerWhite").style.order = youAreWhite ? 2 : 1;
+    $id("playerBlack").style.order = youAreWhite ? 1 : 2;
+    $id("capturedByWhite").parentElement.style.order = youAreWhite ? 2 : 1;
+    $id("capturedByBlack").parentElement.style.order = youAreWhite ? 1 : 2;
+}
+
+/** Turns the camera so your pieces are nearest you. */
+function faceSide(color){
+    const black = color === "b";
+    if(black !== viewingAsBlack){
+        Scene.camera.changeAzimuth(180);
+        viewingAsBlack = black;
+    }
 }
 
 function setStatus(text, kind){
@@ -629,10 +885,12 @@ function refreshHud(){
         refreshReplay();
     }
     else{
-        if(chess.game_over()) setStatus("Game over");
-        else if(thinking) setStatus("Computer is thinking…", "thinking");
-        else if(chess.in_check() && turn === "w") setStatus("Check — your move", "check");
-        else setStatus(turn === "w" ? "Your move" : "Waiting for the computer");
+        if(chess.game_over() || gameOverShown) setStatus("Game over");
+        else if(!gameId) setStatus("Starting game…");
+        else if(thinking) setStatus(online ? "Sending your move…" : "Computer is thinking…", "thinking");
+        else if(chess.in_check() && turn === playerColor) setStatus("Check — your move", "check");
+        else if(turn === playerColor) setStatus("Your move");
+        else setStatus(online ? "Waiting for " + online.opponent.name + "…" : "Waiting for the computer", online ? "thinking" : null);
 
         // Selected move
         const playable = canPlay();
@@ -644,6 +902,9 @@ function refreshHud(){
             : "";
         ["prevMove", "playMove", "nextMove"].forEach(id => $id(id).disabled = !playable);
     }
+
+    // resigning is offered while a game is being played
+    $id("resignBtn").hidden = !!replay || !gameId || gameOverShown || chess.game_over();
 
     // a live game lists the moves played; a replay lists the whole game with the current move marked
     if(replay) renderMoveList(replay.sans, replay.ply, true);
@@ -700,12 +961,14 @@ function renderMoveList(plies, played, clickable){
 }
 
 function showGameOver(){
-    // a replay reaching the final position shows the result in the panel instead
-    if(gameOverShown || replay) return;
+    // a replay reaching the final position shows the result in the panel instead; an online
+    // game's result comes from the server (it knows the rating change), see finishOnline
+    if(gameOverShown || replay || online) return;
     gameOverShown = true;
     let title, detail;
     if(chess.in_checkmate()){
-        const youWon = chess.turn() === "b";
+        // the side to move is the side that was mated
+        const youWon = chess.turn() !== playerColor;
         title = youWon ? "Checkmate — you win" : "Checkmate — you lose";
         detail = youWon ? "Nicely played." : "The computer got you this time.";
     }
@@ -715,6 +978,9 @@ function showGameOver(){
     else { title = "Draw"; detail = "Fifty-move rule."; }
     $id("resultTitle").textContent = title;
     $id("resultDetail").textContent = detail;
+    $id("playAgain").textContent = "Play again";
+    $id("switchSide").textContent = playerColor === "w" ? "Play as Black" : "Play as White";
+    $id("resultRating").hidden = true;
     $id("gameOver").hidden = false;
     refreshHud();
 }
@@ -743,17 +1009,26 @@ var startSnapshot = null;     // every scene object's starting square, position 
 const REPLAY_STEP_MS = 1500;  // autoplay pace: one move animation plus a short pause
 
 function replayResultOf(game){
-    if(game.status === "CHECKMATE") return game.winner === game.color ? ["win", "You won by checkmate"] : ["loss", "You lost by checkmate"];
+    const how = { CHECKMATE: "by checkmate", RESIGNED: "by resignation", ABANDONED: "by abandonment" }[game.status];
+    if(how) return game.winner === game.color ? ["win", "You won " + how] : ["loss", "You lost " + how];
     if(game.status === "STALEMATE") return ["draw", "Draw by stalemate"];
     if(game.status === "DRAW") return ["draw", "Draw"];
     return ["open", "Unfinished game"];
 }
 
-/** Resolves once the models are loaded and every piece knows its starting square. */
+var boardLoaded = false;
+
+/**
+ * Resolves once the models are loaded and every piece knows its starting square. That is only
+ * checked until it first holds: later, captured pieces have no square, and the check would never pass.
+ */
 function boardReady(){
     return new Promise(resolve => {
         (function check(){
-            if(Pos && Scene.boxs.length === 64 && Scene.objects.filter(o => o.cord).length === 32) resolve();
+            if(boardLoaded || (Pos && Scene.boxs.length === 64 && Scene.objects.filter(o => o.cord).length === 32)){
+                boardLoaded = true;
+                resolve();
+            }
             else setTimeout(check, 50);
         })();
     });
@@ -873,12 +1148,8 @@ async function startReplay(id){
         replay.game = game;
         replay.sans = game.moves ? game.moves.split(" ") : [];
 
-        const opponent = game.opponent === "COMPUTER" ? "Computer" : "Opponent";
-        const youAreWhite = game.color === "WHITE";
-        $id("playerWhiteName").textContent = youAreWhite ? "You" : opponent;
-        $id("playerBlackName").textContent = youAreWhite ? opponent : "You";
-        $id("capturedByWhiteLabel").textContent = youAreWhite ? "You" : "Rival";
-        $id("capturedByBlackLabel").textContent = youAreWhite ? "Rival" : "You";
+        const color = game.color === "WHITE" ? "w" : "b";
+        applySideLabels(color, game.opponent === "COMPUTER" ? "Computer" : "Opponent");
         const [kind, text] = replayResultOf(game);
         $id("replayResult").textContent = text;
         $id("replayResult").className = "replay-result " + kind;
@@ -886,7 +1157,7 @@ async function startReplay(id){
         await boardReady();
         startSnapshot = takeSnapshot();
         // view the game from the side you played
-        if(!youAreWhite) Scene.camera.changeAzimuth(180);
+        faceSide(color);
         replayGoTo(0);
     }
     catch(err){
@@ -895,31 +1166,384 @@ async function startReplay(id){
     }
 }
 
+/* ---------- Online play ---------- */
+
+var online = null;        // the online game being played: { gameId, rated, you, opponent, timer, over }
+var search = null;        // matchmaking in progress: { startedAt, pollTimer, clockTimer }
+var myRating = null;      // the signed-in player's rating; null for guests
+var pollBusy = false;
+var lastResultOnline = false;
+const ONLINE_POLL_MS = 1000;
+
+function onlineInProgress(){
+    return !!online && !online.over;
+}
+
+function csrfHeaders(){
+    return { 'X-XSRF-TOKEN': csrfToken() };
+}
+
+/** "Alice · 1250", or "You · 1200" for your own side; guests and the computer have no rating. */
+function sideLabel(side, isYou){
+    const name = isYou ? "You" : side.name;
+    return side.rating != null ? name + " · " + side.rating : name;
+}
+
+/** Joins matchmaking and waits for an opponent (the queue is polled, which also keeps our place). */
+async function findOpponent(){
+    closeSideChooser();
+    $id("gameOver").hidden = true;
+    await resignOnlineGame();
+    leaveOnline();
+    startCounter++;                // drop any computer game still starting
+    stopSearch();
+    search = { startedAt: Date.now(), pollTimer: null, clockTimer: setInterval(updateSearchClock, 500) };
+    $id("searchDetail").textContent = "Joining the queue…";
+    updateSearchClock();
+    $id("searching").hidden = false;
+    try{
+        const status = await fetch("/queue/join", { method: "PUT", headers: csrfHeaders() }).then(checkAuth).then(readResult);
+        if(!search) return;
+        showQueueStatus(status);
+        search.pollTimer = setInterval(pollQueue, ONLINE_POLL_MS);
+    }
+    catch(err){
+        console.log(err);
+        $id("searchDetail").textContent = "Couldn't join the queue. Try again.";
+    }
+}
+
+function updateSearchClock(){
+    if(!search) return;
+    const s = Math.floor((Date.now() - search.startedAt) / 1000);
+    $id("searchTime").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+function showQueueStatus(status){
+    if(status.state === "MATCHED"){
+        stopSearch();
+        startOnline(status.gameId);
+    }
+    else if(status.state === "SEARCHING"){
+        $id("searchDetail").textContent = status.rating != null
+            ? "Your rating " + status.rating + " · looking for " + (status.rating - status.range) + "–" + (status.rating + status.range)
+            : "Unrated · looking for another guest";
+    }
+}
+
+async function pollQueue(){
+    if(!search) return;
+    try{
+        const status = await fetch("/queue/status").then(checkAuth).then(readResult);
+        if(!search) return;
+        // dropped from the queue (e.g. the tab was asleep): join again
+        if(status.state === "IDLE"){
+            showQueueStatus(await fetch("/queue/join", { method: "PUT", headers: csrfHeaders() }).then(checkAuth).then(readResult));
+        }
+        else{
+            showQueueStatus(status);
+        }
+    }
+    catch(err){ console.log(err); }
+}
+
+function stopSearch(){
+    if(!search) return;
+    clearInterval(search.pollTimer);
+    clearInterval(search.clockTimer);
+    search = null;
+    $id("searching").hidden = true;
+}
+
+async function cancelSearch(){
+    if(!search) return;
+    stopSearch();
+    try{
+        await fetch("/queue/leave", { method: "DELETE", headers: csrfHeaders() });
+        // a match may have been made just before we left: play it rather than strand the opponent
+        const status = await fetch("/queue/status").then(readResult);
+        if(status.state === "MATCHED") startOnline(status.gameId);
+    }
+    catch(err){ console.log(err); }
+}
+
+async function startOnline(id){
+    try{
+        resumeOnline(await fetch(`/game/${encodeURIComponent(id)}/state`).then(checkAuth).then(readResult));
+    }
+    catch(err){
+        console.log(err);
+        setStatus("Couldn't open the online game.", "check");
+    }
+}
+
+/** Shows an online game (just matched, or picked up again after a reload) and starts following it. */
+async function resumeOnline(state){
+    const token = ++startCounter;
+    leaveOnline();
+    const youAreWhite = state.color === "WHITE";
+    const you = youAreWhite ? state.white : state.black;
+    const opponent = youAreWhite ? state.black : state.white;
+    online = { gameId: state.gameId, rated: state.rated, you: you, opponent: opponent, timer: null, over: false };
+    playerColor = youAreWhite ? "w" : "b";
+    gameId = null;                 // no moves until the position is on the board
+    thinking = false;
+    gameOverShown = false;
+    selectedFrom = null;
+    curMove = 0;
+    $id("gameOver").hidden = true;
+    closeSideChooser();
+    applySideLabels(playerColor, sideLabel(opponent, false), sideLabel(you, true));
+    refreshHud();
+
+    await boardReady();
+    if(token !== startCounter) return;
+    if(!startSnapshot) startSnapshot = takeSnapshot();
+    else resetBoard();
+    faceSide(playerColor);
+    state.moves.forEach(san => replayApply(san, true));
+    gameId = state.gameId;
+    allMoves = playerMoves();
+    refreshHud();
+    if(state.status !== "IN_PROGRESS"){
+        finishOnline(state);
+        return;
+    }
+    online.timer = setInterval(pollOnline, ONLINE_POLL_MS);
+}
+
+/** Picks up the opponent's moves and the game's end. Skipped while our own move is being sent. */
+async function pollOnline(){
+    if(!online || online.over || pollBusy || thinking) return;
+    pollBusy = true;
+    const forGame = online.gameId;
+    try{
+        const state = await fetch(`/game/${forGame}/state`).then(checkAuth).then(readResult);
+        if(!online || online.gameId !== forGame || thinking) return;
+        const have = chess.history().length;
+        if(state.moves.length > have){
+            // catch up instantly on anything missed, and animate the latest move
+            for(let i = have; i < state.moves.length; i++) replayApply(state.moves[i], i < state.moves.length - 1);
+            allMoves = playerMoves();
+            curMove = 0;
+            selectedFrom = null;
+        }
+        $id("claimBox").hidden = !state.canClaimWin;
+        if(state.canClaimWin){
+            $id("claimText").textContent = online.opponent.name + " hasn't moved for " + Math.floor(state.opponentIdleSeconds / 60) + " minutes.";
+        }
+        if(state.status !== "IN_PROGRESS") finishOnline(state);
+        else refreshHud();
+    }
+    catch(err){ console.log(err); }
+    finally{ pollBusy = false; }
+}
+
+function finishOnline(state){
+    if(!online || online.over) return;
+    online.over = true;
+    clearInterval(online.timer);
+    gameOverShown = true;
+    $id("claimBox").hidden = true;
+    showOnlineResult(state);
+    refreshHud();
+    // the badge shows the new rating
+    loadUser().then(user => { myRating = user && user.rating != null ? user.rating : null; });
+}
+
+function showOnlineResult(state){
+    const won = state.winner === state.color;
+    const opponent = online.opponent.name;
+    const texts = {
+        CHECKMATE: won ? ["Checkmate — you win", "You beat " + opponent + "."] : ["Checkmate — you lose", opponent + " got you this time."],
+        RESIGNED: won ? ["You win", opponent + " resigned."] : ["You resigned", opponent + " wins."],
+        ABANDONED: won ? ["You win", opponent + " left the game."] : ["Game abandoned", "You went too long without moving."],
+        STALEMATE: ["Stalemate", "No legal moves left — it's a draw."],
+        DRAW: ["Draw", "The game is drawn."]
+    };
+    const [title, detail] = texts[state.status] || ["Game over", ""];
+    let rating = null;
+    if(state.rated && state.ratingChange != null){
+        rating = { before: online.you.rating, change: state.ratingChange };
+    }
+    showResultCard(title, detail, state.rated ? rating : "unrated", true);
+}
+
+/**
+ * The result card. rating is { before, change } for a rated game, "unrated" for an online game
+ * that wasn't rated, or null (computer games) to leave the line out.
+ */
+function showResultCard(title, detail, rating, isOnline){
+    lastResultOnline = isOnline;
+    $id("resultTitle").textContent = title;
+    $id("resultDetail").textContent = detail;
+    const line = $id("resultRating");
+    line.textContent = "";
+    if(rating && rating !== "unrated"){
+        const after = rating.before + rating.change;
+        line.appendChild(document.createTextNode("Rating " + rating.before + " → " + after + " "));
+        const delta = document.createElement("span");
+        delta.className = rating.change >= 0 ? "up" : "down";
+        delta.textContent = "(" + (rating.change >= 0 ? "+" : "") + rating.change + ")";
+        line.appendChild(delta);
+    }
+    else if(rating === "unrated"){
+        line.textContent = "Unrated game";
+    }
+    line.hidden = !rating;
+    $id("playAgain").textContent = isOnline ? "Find another opponent" : "Play again";
+    $id("switchSide").textContent = isOnline ? "Play the computer" : (playerColor === "w" ? "Play as Black" : "Play as White");
+    $id("gameOver").hidden = false;
+}
+
+function playAgain(){
+    if(lastResultOnline) findOpponent();
+    else newGame(sideChoice);
+}
+
+function switchSideOrComputer(){
+    if(lastResultOnline) openSideChooser();
+    else newGame(playerColor === "w" ? "black" : "white");
+}
+
+/** Stops following the online game, e.g. when another game starts. */
+function leaveOnline(){
+    if(online) clearInterval(online.timer);
+    online = null;
+    $id("claimBox").hidden = true;
+}
+
+/** Leaving an online game that is still being played forfeits it. */
+async function resignOnlineGame(){
+    if(!onlineInProgress()) return;
+    try{
+        await fetch(`/game/${online.gameId}/resign`, { method: "POST", headers: csrfHeaders() });
+    }
+    catch(err){ console.log(err); }
+}
+
+var resignConfirmTimer = null;
+
+/** Resign button: the first click asks for confirmation, the second resigns. */
+async function resign(){
+    const button = $id("resignBtn");
+    if(!button.classList.contains("confirm")){
+        button.classList.add("confirm");
+        button.textContent = "Confirm resign";
+        resignConfirmTimer = setTimeout(resetResignButton, 4000);
+        return;
+    }
+    resetResignButton();
+    const forGame = gameId;
+    try{
+        const state = await fetch(`/game/${forGame}/resign`, { method: "POST", headers: csrfHeaders() }).then(checkAuth).then(readResult);
+        if(gameId !== forGame) return;
+        if(online){
+            finishOnline(state);
+        }
+        else{
+            gameOverShown = true;
+            showResultCard("You resigned", "The computer wins.", null, false);
+            refreshHud();
+        }
+    }
+    catch(err){
+        console.log(err);
+        setStatus(err.message || "Couldn't resign.", "check");
+    }
+}
+
+function resetResignButton(){
+    clearTimeout(resignConfirmTimer);
+    const button = $id("resignBtn");
+    button.classList.remove("confirm");
+    button.textContent = "Resign";
+}
+
+async function claimWin(){
+    if(!onlineInProgress()) return;
+    try{
+        finishOnline(await fetch(`/game/${online.gameId}/claim`, { method: "POST", headers: csrfHeaders() }).then(checkAuth).then(readResult));
+    }
+    catch(err){
+        console.log(err);
+        setStatus(err.message || "Couldn't claim the win.", "check");
+    }
+}
+
+/** On load: carry on with an online game in progress, otherwise start a game against the computer. */
+async function resumeOrStart(side){
+    try{
+        const re = await fetch("/game/active").then(checkAuth);
+        if(re.status === 200){
+            resumeOnline(await re.json());
+            return;
+        }
+    }
+    catch(err){ console.log(err); }
+    startGame(side);
+}
+
 /* ---------- Server calls ---------- */
 
-async function getGameId(){
-    const params = new URLSearchParams()
-    params.append("startingSide", startingColor)
-    fetch(`/game/start?${params}`, {
-        method: "GET",
-    })
+/**
+ * Starts a game against the computer. The board is reset in place (no reload); when you play
+ * black the server has the computer open, and that move is animated once the models are ready.
+ */
+async function startGame(choice){
+    const token = ++startCounter;
+    leaveOnline();
+    sideChoice = choice;
+    const side = choice === "random" ? (Math.random() < 0.5 ? "white" : "black") : choice;
+    playerColor = side === "black" ? "b" : "w";
+
+    gameId = null;
+    thinking = false;
+    gameOverShown = false;
+    selectedFrom = null;
+    curMove = 0;
+    $id("gameOver").hidden = true;
+    closeSideChooser();
+    applySideLabels(playerColor, "Computer");
+    refreshHud();
+
+    // the scene has to be loaded before any move can be shown on it
+    await boardReady();
+    if(token !== startCounter) return;
+    if(!startSnapshot) startSnapshot = takeSnapshot();
+    else resetBoard();
+    faceSide(playerColor);
+    allMoves = playerMoves();
+    refreshHud();
+
+    const params = new URLSearchParams({ startingSide: side.toUpperCase() });
+    fetch(`/game/start?${params}`)
     .then(checkAuth)
     .then(readResult)
     .then(data => {
+        if(token !== startCounter) return;
         gameId = data.gameId;
         playerId = data.playerId;
+        if(data.startingMove){
+            const opening = data.startingMove;
+            const move = new Chess(chess.fen()).move({ from: opening.from, to: opening.to, promotion: opening.promotion || undefined });
+            createAnime(move, move);
+        }
+        allMoves = playerMoves();
+        curMove = 0;
         refreshHud();
     })
     .catch(err => {
         console.log(err);
-        setStatus("Couldn't start a game. Try reloading.", "check");
+        if(token === startCounter) setStatus("Couldn't start a game. Try again.", "check");
     });
 }
 
 // the server checks every move: it must be this player's game, their turn, and a legal move
 function readResult(re){
     if(!re.ok){
-        const reason = { 400: "That move was rejected.", 404: "This game is no longer available.", 409: "That move can't be played right now." };
+        const reason = { 400: "That move was rejected.", 404: "This game is no longer available.", 409: "That move can't be played right now.",
+                         503: "The server is busy — try that move again." };
         throw new Error(reason[re.status] || "Something went wrong. Try again.");
     }
     return re.json();
@@ -927,6 +1551,7 @@ function readResult(re){
 
 async function postMove(move){
     console.log(JSON.stringify(move))
+    const forGame = gameId;   // a reply for a game that has since been replaced is dropped
     const path = `/game/${gameId}/move`
     await fetch(path , {
         method: "POST",
@@ -941,8 +1566,15 @@ async function postMove(move){
     .then(readResult)
     .then(re => {
         console.log(re)
+        if(forGame !== gameId) return;
         createAnime(re.move, re.moveResult);
-        if(re.status === "IN_PROGRESS"){
+        if(online){
+            // an online opponent's reply arrives through polling; a finished game is reported by the server
+            thinking = false;
+            refreshHud();
+            if(re.status !== "IN_PROGRESS") pollOnline();
+        }
+        else if(re.status === "IN_PROGRESS"){
             refreshHud();
             getOppMove();
         }
@@ -951,7 +1583,7 @@ async function postMove(move){
             refreshHud();
         }
     })
-    .catch(moveFailed);
+    .catch(err => { if(forGame === gameId) moveFailed(err); });
 }
 
 function moveFailed(err){
@@ -963,6 +1595,7 @@ function moveFailed(err){
 
 function getOppMove(move){
     console.log(JSON.stringify(move))
+    const forGame = gameId;
     const path = `/game/${gameId}/opponents/move`
     fetch(path , {
         method: "GET",
@@ -971,13 +1604,14 @@ function getOppMove(move){
         .then(readResult)
         .then(re => {
             console.log(re)
+            if(forGame !== gameId) return;
             createAnime(re.move, re.moveResult)
             allMoves = playerMoves();
             curMove = 0;
             thinking = false;
             refreshHud();
         })
-        .catch(moveFailed);
+        .catch(err => { if(forGame === gameId) moveFailed(err); });
 }
 
 function move(from, to, promotion){
@@ -1275,9 +1909,12 @@ function main(){
         enterReplayUi();
     }
     else{
-        getGameId();
+        // ?side= from a link (e.g. "Play as Black" after a replay), else the side you picked last time
+        // an online game in progress comes first (leaving it would forfeit); otherwise ?side= from a
+        // link (e.g. "Play as Black" after a replay), else the side you picked last time
+        resumeOrStart(validSide(new URLSearchParams(window.location.search).get("side") || storedSide()));
     }
-    loadUser();
+    loadUser().then(user => { myRating = user && user.rating != null ? user.rating : null; });
     resizeCanvas();
     utils.initGL(document.getElementById("canvas"))
     window.addEventListener("resize", resizeCanvas);

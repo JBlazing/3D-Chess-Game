@@ -2,27 +2,42 @@ package com.jblazing.game.service;
 
 import com.jblazing.game.persistence.GameRecord;
 import com.jblazing.player.Player;
+import com.jblazing.user.UserAccount;
 
 import java.time.Instant;
+import java.util.Objects;
 
 /**
  * One of a player's games, from their side of the board.
  *
- * @param color    the side the player played, WHITE or BLACK
- * @param opponent the other side's player key, e.g. COMPUTER
- * @param winner   WHITE or BLACK after a checkmate, otherwise null
- * @param fen      the latest position
+ * @param color          the side the player played, WHITE or BLACK
+ * @param opponent       the other side's player key, e.g. COMPUTER
+ * @param opponentName   who that was: "Computer", the opponent's name, or "Guest"
+ * @param winner         WHITE or BLACK when the game has one, otherwise null
+ * @param fen            the latest position
+ * @param rating         the player's rating when the game started; null when unrated
+ * @param opponentRating the opponent's rating when the game started; null when unrated
+ * @param ratingChange   how much the player's rating changed; null when unrated or unfinished
  */
-public record GameSummary(String gameId, String color, String opponent, String status, String winner,
-                          int moveCount, String moves, String fen, Instant createdAt, Instant updatedAt) {
+public record GameSummary(String gameId, String color, String opponent, String opponentName, String status, String winner,
+                          int moveCount, String moves, String fen, boolean rated, Integer rating, Integer opponentRating,
+                          Integer ratingChange, Instant createdAt, Instant updatedAt) {
 
+    /** Must be called inside a transaction: it reads the opponent's account name. */
     static GameSummary of(GameRecord record, Player player) {
         boolean white = record.getWhitePlayer().equals(player.id());
+        String opponent = white ? record.getBlackPlayer() : record.getWhitePlayer();
+        UserAccount opponentAccount = white ? record.getBlackAccount() : record.getWhiteAccount();
+        String opponentName = Player.COMPUTER.id().equals(opponent) ? "Computer"
+                : opponentAccount != null ? Objects.requireNonNullElse(opponentAccount.getName(), "Player")
+                : "Guest";
         String moves = record.getMoves();
-        return new GameSummary(record.getId(), white ? "WHITE" : "BLACK",
-                white ? record.getBlackPlayer() : record.getWhitePlayer(),
+        return new GameSummary(record.getId(), white ? "WHITE" : "BLACK", opponent, opponentName,
                 record.getStatus(), record.getWinner(),
-                moves.isEmpty() ? 0 : moves.split(" ").length, moves, record.getFen(),
+                moves.isEmpty() ? 0 : moves.split(" ").length, moves, record.getFen(), record.isRated(),
+                white ? record.getWhiteRating() : record.getBlackRating(),
+                white ? record.getBlackRating() : record.getWhiteRating(),
+                white ? record.getWhiteRatingChange() : record.getBlackRatingChange(),
                 record.getCreatedAt(), record.getUpdatedAt());
     }
 }

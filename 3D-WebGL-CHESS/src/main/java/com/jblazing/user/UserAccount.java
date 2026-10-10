@@ -43,6 +43,13 @@ public class UserAccount {
     @Column(name = "last_login_at", nullable = false)
     private Instant lastLoginAt;
 
+    /** Elo rating; see {@link com.jblazing.rating.RatingService}. */
+    @Column(nullable = false)
+    private int rating = 1200;
+
+    @Column(name = "rated_games", nullable = false)
+    private int ratedGames;
+
     public UserAccount(String provider, String providerSubject, Instant createdAt) {
         this.provider = provider;
         this.providerSubject = providerSubject;

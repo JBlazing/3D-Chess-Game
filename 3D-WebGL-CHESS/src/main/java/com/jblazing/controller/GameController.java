@@ -3,6 +3,8 @@ package com.jblazing.controller;
 
 import com.jblazing.game.service.GameService;
 import com.jblazing.game.service.GameSummary;
+import com.jblazing.game.service.LiveGame;
+import org.springframework.http.ResponseEntity;
 import com.jblazing.model.GameStart;
 import com.jblazing.model.Move;
 import com.jblazing.model.Result;
@@ -56,5 +58,32 @@ public class GameController {
     @GetMapping("{gameId}")
     public GameSummary game(@PathVariable("gameId") UUID gameId, Player player) {
         return gameService.summaryFor(gameId, player);
+    }
+
+    /** The game as it stands, polled by the page while an online game is played. */
+    @GetMapping("{gameId}/state")
+    public LiveGame state(@PathVariable("gameId") UUID gameId, Player player) {
+        return gameService.liveGame(gameId, player);
+    }
+
+    @PostMapping("{gameId}/resign")
+    public LiveGame resign(@PathVariable("gameId") UUID gameId, Player player) {
+        gameService.resign(gameId, player);
+        return gameService.liveGame(gameId, player);
+    }
+
+    /** Win an online game the opponent has abandoned (gone too long without moving). */
+    @PostMapping("{gameId}/claim")
+    public LiveGame claimWin(@PathVariable("gameId") UUID gameId, Player player) {
+        gameService.claimWin(gameId, player);
+        return gameService.liveGame(gameId, player);
+    }
+
+    /** The player's online game still in progress, so a reloaded page can carry on; 204 if none. */
+    @GetMapping("active")
+    public ResponseEntity<LiveGame> active(Player player) {
+        return gameService.activeOnlineGame(player)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

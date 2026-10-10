@@ -41,6 +41,8 @@ public class AuthController {
                 "id", account.getId(),
                 "name", Objects.toString(account.getName(), ""),
                 "email", Objects.toString(account.getEmail(), ""),
-                "picture", Objects.toString(account.getPictureUrl(), ""));
+                "picture", Objects.toString(account.getPictureUrl(), ""),
+                "rating", account.getRating(),
+                "ratedGames", account.getRatedGames());
     }
 }
