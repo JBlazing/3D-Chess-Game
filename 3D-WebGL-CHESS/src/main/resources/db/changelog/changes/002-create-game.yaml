@@ -1,0 +1,91 @@
+# Games, linked to the accounts that played them.
+#
+# logicalFilePath: these changesets were first applied from db.changelog-master.yaml, and
+# Liquibase identifies a changeset by id, author and file path. Keeping the original path means
+# databases that already ran them don't try to run them again. New files don't need it.
+databaseChangeLog:
+  - changeSet:
+      id: 2-create-game
+      author: jblazing
+      logicalFilePath: db/changelog/db.changelog-master.yaml
+      changes:
+        - createTable:
+            tableName: game
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              # player keys: "user:<account id>", "guest:<session>" or "COMPUTER"
+              - column:
+                  name: white_player
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: black_player
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              # the signed-in accounts playing each side; null for the computer and guests.
+              # Foreign keys are declared here because SQLite can't add them with ALTER TABLE.
+              - column:
+                  name: white_account_id
+                  type: ${id.type}
+                  constraints:
+                    foreignKeyName: fk_game_white_account
+                    referencedTableName: user_account
+                    referencedColumnNames: id
+              - column:
+                  name: black_account_id
+                  type: ${id.type}
+                  constraints:
+                    foreignKeyName: fk_game_black_account
+                    referencedTableName: user_account
+                    referencedColumnNames: id
+              # IN_PROGRESS, CHECKMATE, STALEMATE or DRAW
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              # WHITE or BLACK after a checkmate, otherwise null
+              - column:
+                  name: winner
+                  type: VARCHAR(5)
+              # current position as FEN
+              - column:
+                  name: fen
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              # moves so far in SAN, space separated
+              - column:
+                  name: moves
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: game
+            indexName: ix_game_white_account
+            columns:
+              - column:
+                  name: white_account_id
+        - createIndex:
+            tableName: game
+            indexName: ix_game_black_account
+            columns:
+              - column:
+                  name: black_account_id

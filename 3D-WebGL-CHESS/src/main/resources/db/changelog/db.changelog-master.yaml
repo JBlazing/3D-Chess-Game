@@ -1,8 +1,13 @@
 # Schema migrations, written in Liquibase's database-neutral format so the same
 # changesets run on SQLite and PostgreSQL. Never edit an applied changeset; add a new one.
+#
+# Each change lives in its own file under changes/, applied in the order included below.
+# To add one, create the next numbered file and include it at the end.
 databaseChangeLog:
+  # Column types that differ by database; the included files use them, and the first matching
+  # definition wins.
   # SQLite only allows AUTOINCREMENT on a column declared exactly "INTEGER PRIMARY KEY"
-  # (SQLite's INTEGER is 64-bit); everywhere else ids are BIGINT. The first matching definition wins.
+  # (SQLite's INTEGER is 64-bit); everywhere else ids are BIGINT.
   - property:
       name: id.type
       value: INTEGER
@@ -21,211 +26,12 @@ databaseChangeLog:
       name: timestamp.type
       value: TIMESTAMP WITH TIME ZONE
 
-  - changeSet:
-      id: 1-create-user-account
-      author: jblazing
-      changes:
-        - createTable:
-            tableName: user_account
-            columns:
-              - column:
-                  name: id
-                  type: ${id.type}
-                  autoIncrement: true
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              # OAuth2 registration the account signed in with, e.g. "google"
-              - column:
-                  name: provider
-                  type: VARCHAR(32)
-                  constraints:
-                    nullable: false
-              # the provider's stable user id (OIDC "sub"); unlike email it never changes
-              - column:
-                  name: provider_subject
-                  type: VARCHAR(255)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: email
-                  type: VARCHAR(320)
-              - column:
-                  name: name
-                  type: VARCHAR(255)
-              - column:
-                  name: picture_url
-                  type: VARCHAR(2048)
-              - column:
-                  name: created_at
-                  type: ${timestamp.type}
-                  constraints:
-                    nullable: false
-              - column:
-                  name: last_login_at
-                  type: ${timestamp.type}
-                  constraints:
-                    nullable: false
-        # a unique index rather than addUniqueConstraint: SQLite can't ALTER TABLE ADD CONSTRAINT
-        - createIndex:
-            tableName: user_account
-            indexName: uk_user_account_provider_subject
-            unique: true
-            columns:
-              - column:
-                  name: provider
-              - column:
-                  name: provider_subject
-
-  - changeSet:
-      id: 2-create-game
-      author: jblazing
-      changes:
-        - createTable:
-            tableName: game
-            columns:
-              - column:
-                  name: id
-                  type: VARCHAR(36)
-                  constraints:
-                    primaryKey: true
-                    nullable: false
-              # player keys: "user:<account id>", "guest:<session>" or "COMPUTER"
-              - column:
-                  name: white_player
-                  type: VARCHAR(64)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: black_player
-                  type: VARCHAR(64)
-                  constraints:
-                    nullable: false
-              # the signed-in accounts playing each side; null for the computer and guests.
-              # Foreign keys are declared here because SQLite can't add them with ALTER TABLE.
-              - column:
-                  name: white_account_id
-                  type: ${id.type}
-                  constraints:
-                    foreignKeyName: fk_game_white_account
-                    referencedTableName: user_account
-                    referencedColumnNames: id
-              - column:
-                  name: black_account_id
-                  type: ${id.type}
-                  constraints:
-                    foreignKeyName: fk_game_black_account
-                    referencedTableName: user_account
-                    referencedColumnNames: id
-              # IN_PROGRESS, CHECKMATE, STALEMATE or DRAW
-              - column:
-                  name: status
-                  type: VARCHAR(16)
-                  constraints:
-                    nullable: false
-              # WHITE or BLACK after a checkmate, otherwise null
-              - column:
-                  name: winner
-                  type: VARCHAR(5)
-              # current position as FEN
-              - column:
-                  name: fen
-                  type: VARCHAR(100)
-                  constraints:
-                    nullable: false
-              # moves so far in SAN, space separated
-              - column:
-                  name: moves
-                  type: TEXT
-                  constraints:
-                    nullable: false
-              - column:
-                  name: created_at
-                  type: ${timestamp.type}
-                  constraints:
-                    nullable: false
-              - column:
-                  name: updated_at
-                  type: ${timestamp.type}
-                  constraints:
-                    nullable: false
-        - createIndex:
-            tableName: game
-            indexName: ix_game_white_account
-            columns:
-              - column:
-                  name: white_account_id
-        - createIndex:
-            tableName: game
-            indexName: ix_game_black_account
-            columns:
-              - column:
-                  name: black_account_id
-
-  - changeSet:
-      id: 3-elo-ratings
-      author: jblazing
-      # Liquibase emulates addColumn on SQLite by rebuilding the table, which fails on this schema;
-      # SQLite's own ADD COLUMN handles it, so SQLite gets the plain-SQL changeset below instead
-      dbms: "!sqlite"
-      changes:
-        # every account starts at 1200; rated_games drives the K-factor (new players move faster)
-        - addColumn:
-            tableName: user_account
-            columns:
-              - column:
-                  name: rating
-                  type: INT
-                  defaultValueNumeric: 1200
-                  constraints:
-                    nullable: false
-              - column:
-                  name: rated_games
-                  type: INT
-                  defaultValueNumeric: 0
-                  constraints:
-                    nullable: false
-        # only games between two signed-in players are rated; never games against the computer
-        - addColumn:
-            tableName: game
-            columns:
-              - column:
-                  name: rated
-                  type: BOOLEAN
-                  defaultValueBoolean: false
-                  constraints:
-                    nullable: false
-              # ratings when the game started, and how much each changed when it ended (null until then)
-              - column:
-                  name: white_rating
-                  type: INT
-              - column:
-                  name: black_rating
-                  type: INT
-              - column:
-                  name: white_rating_change
-                  type: INT
-              - column:
-                  name: black_rating_change
-                  type: INT
-
-  # the same columns as 3-elo-ratings, for SQLite
-  - changeSet:
-      id: 3-elo-ratings-sqlite
-      author: jblazing
-      dbms: sqlite
-      changes:
-        - sql:
-            sql: ALTER TABLE user_account ADD COLUMN rating INT NOT NULL DEFAULT 1200
-        - sql:
-            sql: ALTER TABLE user_account ADD COLUMN rated_games INT NOT NULL DEFAULT 0
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN rated BOOLEAN NOT NULL DEFAULT 0
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN white_rating INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN black_rating INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN white_rating_change INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN black_rating_change INT
+  - include:
+      file: changes/001-create-user-account.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/002-create-game.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/003-elo-ratings.yaml
+      relativeToChangelogFile: true

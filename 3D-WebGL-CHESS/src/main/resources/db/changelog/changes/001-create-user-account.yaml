@@ -1,0 +1,62 @@
+# User accounts, created the first time someone signs in.
+#
+# logicalFilePath: these changesets were first applied from db.changelog-master.yaml, and
+# Liquibase identifies a changeset by id, author and file path. Keeping the original path means
+# databases that already ran them don't try to run them again. New files don't need it.
+databaseChangeLog:
+  - changeSet:
+      id: 1-create-user-account
+      author: jblazing
+      logicalFilePath: db/changelog/db.changelog-master.yaml
+      changes:
+        - createTable:
+            tableName: user_account
+            columns:
+              - column:
+                  name: id
+                  type: ${id.type}
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              # OAuth2 registration the account signed in with, e.g. "google"
+              - column:
+                  name: provider
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              # the provider's stable user id (OIDC "sub"); unlike email it never changes
+              - column:
+                  name: provider_subject
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: VARCHAR(320)
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+              - column:
+                  name: picture_url
+                  type: VARCHAR(2048)
+              - column:
+                  name: created_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_login_at
+                  type: ${timestamp.type}
+                  constraints:
+                    nullable: false
+        # a unique index rather than addUniqueConstraint: SQLite can't ALTER TABLE ADD CONSTRAINT
+        - createIndex:
+            tableName: user_account
+            indexName: uk_user_account_provider_subject
+            unique: true
+            columns:
+              - column:
+                  name: provider
+              - column:
+                  name: provider_subject

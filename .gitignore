@@ -12,4 +12,6 @@
 /3D-WebGL-CHESS/target/
 
 # Local SQLite database
+chess.db
 /3D-WebGL-CHESS/chess.db*
+/3D-WebGL-CHESS/src/main/resources/application-Auth.properties
