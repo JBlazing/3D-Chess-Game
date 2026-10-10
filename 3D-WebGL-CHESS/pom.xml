@@ -48,6 +48,12 @@
             <artifactId>liquibase-core</artifactId>
         </dependency>
 
+        <!-- Sessions (and so sign-ins) are kept in the database, surviving server restarts -->
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>

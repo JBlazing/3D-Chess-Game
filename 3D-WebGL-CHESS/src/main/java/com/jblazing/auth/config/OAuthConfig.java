@@ -16,6 +16,7 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -52,6 +53,9 @@ public class OAuthConfig {
                         // creates the user's account on their first sign-in
                         .userInfoEndpoint(u -> u.oidcUserService(accountOidcUserService)))
                 .logout(l -> l.logoutSuccessUrl(LOGIN_PAGE))
+                // sign-in always lands on HOME_PAGE, so the "page you were trying to reach" is never
+                // used; saving it would create a stored session for every anonymous request
+                .requestCache(c -> c.requestCache(new NullRequestCache()))
                 .csrf(OAuthConfig::cookieCsrf)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
         return http.build();
