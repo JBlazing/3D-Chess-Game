@@ -1,53 +1,54 @@
 package com.jblazing.controller;
 
 
-import com.jblazing.game.cache.GameStateCache;
 import com.jblazing.game.service.GameService;
+import com.jblazing.game.service.GameSummary;
 import com.jblazing.model.GameStart;
 import com.jblazing.model.Move;
 import com.jblazing.model.Result;
+import com.jblazing.player.Player;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+/** Games against the computer, owned by the signed-in player (see {@link Player}). */
 @RestController
 @RequestMapping(path = "/game")
 @AllArgsConstructor
 public class GameController {
 
     private static final String BLACK = "black";
-    private static final String COMPUTER = "COMPUTER";
 
     GameService gameService;
-    GameStateCache gameStateCache;
 
     @GetMapping("start")
-    public GameStart startGame(@RequestParam String startingSide) {
-        UUID gameId = UUID.randomUUID();
-        UUID playerId = UUID.randomUUID();
+    public GameStart startGame(@RequestParam String startingSide, Player player) {
+        boolean playerIsBlack = BLACK.equalsIgnoreCase(startingSide);
+        UUID gameId = playerIsBlack
+                ? gameService.createNewGame(Player.COMPUTER, player)
+                : gameService.createNewGame(player, Player.COMPUTER);
         Move startingMove = null;
-        String currentSide = BLACK.equalsIgnoreCase(startingSide) ? COMPUTER : playerId.toString();
-        gameService.createNewGame(gameId,List.of(COMPUTER, playerId.toString()), currentSide);
-        if(BLACK.equalsIgnoreCase(startingSide)) {
-           Result result = gameService.move(gameId,null);
-           startingMove = result.move();
+        if (playerIsBlack) {
+            startingMove = gameService.computerMove(gameId, player).move();
         }
-       return new GameStart(gameId, playerId , COMPUTER, startingMove);
+        return new GameStart(gameId, player.id(), Player.COMPUTER.id(), startingMove);
     }
 
-    @PostMapping("{gameId}/move/{playerId}")
-    public Result move(@PathVariable("gameId") UUID gameId,
-                       @PathVariable("playerId") UUID playerId,
-                       @RequestBody Move move){
-        return gameService.move(gameId,move);
+    @PostMapping("{gameId}/move")
+    public Result move(@PathVariable("gameId") UUID gameId, @RequestBody Move move, Player player) {
+        return gameService.playerMove(gameId, player, move);
     }
 
     @GetMapping("{gameId}/opponents/move")
-    public Result move(@PathVariable("gameId") UUID gameId){
-        return gameService.move(gameId,null);
+    public Result opponentMove(@PathVariable("gameId") UUID gameId, Player player) {
+        return gameService.computerMove(gameId, player);
     }
 
-
+    /** The signed-in player's recent games, newest first. */
+    @GetMapping("mine")
+    public List<GameSummary> myGames(Player player) {
+        return gameService.gamesFor(player);
+    }
 }

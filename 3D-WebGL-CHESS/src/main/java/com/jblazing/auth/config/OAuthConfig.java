@@ -1,5 +1,6 @@
 package com.jblazing.auth.config;
 
+import com.jblazing.auth.AccountOidcUserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,7 +39,7 @@ public class OAuthConfig {
 
     @Bean
     @Profile("Auth")
-    public SecurityFilterChain oauthFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain oauthFilterChain(HttpSecurity http, AccountOidcUserService accountOidcUserService) throws Exception {
         http.authorizeHttpRequests(a -> a
                         .requestMatchers(LOGIN_PAGE, "/static/**", "/error").permitAll()
                         .anyRequest().authenticated())
@@ -47,7 +48,9 @@ public class OAuthConfig {
                         .defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint(LOGIN_PAGE), AntPathRequestMatcher.antMatcher("/**")))
                 .oauth2Login(o -> o
                         .loginPage(LOGIN_PAGE)
-                        .defaultSuccessUrl(HOME_PAGE, true))
+                        .defaultSuccessUrl(HOME_PAGE, true)
+                        // creates the user's account on their first sign-in
+                        .userInfoEndpoint(u -> u.oidcUserService(accountOidcUserService)))
                 .logout(l -> l.logoutSuccessUrl(LOGIN_PAGE))
                 .csrf(OAuthConfig::cookieCsrf)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);

@@ -24,6 +24,10 @@ function evalMove(playerMove, currentBoardState) {
     const newBoardState = game.fen();
     const history = game.history({verbose: true});
     const resultClass = Java.type("com.jblazing.model.Result")
+    const status = game.in_checkmate() ? "CHECKMATE"
+        : game.in_stalemate() ? "STALEMATE"
+        : game.in_draw() ? "DRAW"
+        : "IN_PROGRESS";
 
-    return (result) ? new resultClass(playerMove, result, newBoardState, history[0]) : null;
+    return (result) ? new resultClass(playerMove, result, newBoardState, history[0], status) : null;
 }

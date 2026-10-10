@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<title>Game History - 3D Chess</title>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<script type='text/javascript' src='/static/js/session.js'></script>
+<style>
+:root {
+    --bg: #0d0910;
+    --surface: rgba(255, 255, 255, 0.035);
+    --surface-hover: rgba(255, 255, 255, 0.06);
+    --glass: rgba(18, 13, 22, 0.78);
+    --line: rgba(255, 255, 255, 0.1);
+    --text: #f4eef2;
+    --muted: rgba(244, 238, 242, 0.62);
+    --faint: rgba(244, 238, 242, 0.38);
+    --accent: #ff7a5c;
+    --win: #6fd3a0;
+    --loss: #ff7b7b;
+    --draw: #c8b8ff;
+    --open: rgba(244, 238, 242, 0.55);
+    --sq-light: #f6d6aa;
+    --sq-dark: #c98a48;
+    --radius: 14px;
+    color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+
+body {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 70% -10%, #3a1622, transparent 55%), var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---- Top bar ---- */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 24px;
+    background: var(--glass);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+}
+.brand-mark { font-size: 22px; line-height: 1; color: var(--accent); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.session {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 13px;
+}
+.session img { width: 26px; height: 26px; border-radius: 50%; }
+.session-name { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.12); }
+.btn:focus-visible, .chip:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); border-color: transparent; color: #1a0d09; font-weight: 650; }
+.btn-primary:hover { background: #ff8f75; }
+.btn-pill { border-radius: 999px; height: 28px; padding: 0 12px; }
+
+/* ---- Page ---- */
+.page { max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; }
+h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: 0.01em; }
+.sub { margin: 6px 0 0; color: var(--muted); }
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 28px 0 24px;
+}
+.stat {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+.stat-value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.stat-label { color: var(--muted); font-size: 12px; }
+.stat.win .stat-value { color: var(--win); }
+.stat.loss .stat-value { color: var(--loss); }
+.stat.draw .stat-value { color: var(--draw); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.chip:hover { color: var(--text); background: var(--surface-hover); }
+.chip[aria-pressed="true"] { color: var(--text); background: rgba(255, 122, 92, 0.16); border-color: rgba(255, 122, 92, 0.45); }
+.chip .count { margin-left: 4px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* ---- Game cards ---- */
+.games { display: grid; gap: 12px; }
+.game {
+    display: grid;
+    grid-template-columns: 136px 1fr;
+    gap: 18px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    transition: background-color 0.15s;
+}
+.game:hover { background: var(--surface-hover); }
+
+.mini-board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    width: 136px;
+    height: 136px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.mini-board span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.mini-board .l { background: var(--sq-light); }
+.mini-board .d { background: var(--sq-dark); }
+/* white pieces get a dark outline so they read on light squares */
+.mini-board .pw { color: #fffaf2; text-shadow: -1px 0 #3a2a1e, 1px 0 #3a2a1e, 0 -1px #3a2a1e, 0 1px #3a2a1e; }
+.mini-board .pb { color: #24171f; }
+
+.game-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.game-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.badge.win { color: var(--win); background: rgba(111, 211, 160, 0.13); }
+.badge.loss { color: var(--loss); background: rgba(255, 123, 123, 0.13); }
+.badge.draw { color: var(--draw); background: rgba(200, 184, 255, 0.13); }
+.badge.open { color: var(--open); background: rgba(255, 255, 255, 0.07); }
+.vs { font-weight: 600; }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; vertical-align: 0; }
+.swatch.white { background: #f4efe6; }
+.swatch.black { background: #2a2230; border: 1px solid rgba(255, 255, 255, 0.3); }
+.when { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
+.meta { color: var(--muted); font-size: 13px; }
+
+details { margin-top: 2px; }
+summary {
+    width: fit-content;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+summary:hover { color: var(--text); }
+.moves {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font: 13px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.moves .num { color: var(--faint); margin-right: 4px; }
+.moves .none { color: var(--faint); font-family: inherit; }
+
+/* ---- States ---- */
+.state {
+    padding: 48px 24px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    text-align: center;
+}
+.state-mark { font-size: 40px; line-height: 1; color: var(--accent); }
+.state h2 { margin: 12px 0 6px; font-size: 18px; }
+.state p { margin: 0 0 18px; color: var(--muted); }
+.skeleton {
+    height: 150px;
+    border-radius: var(--radius);
+    background: linear-gradient(90deg, var(--surface) 25%, rgba(255, 255, 255, 0.07) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+.note { margin-top: 16px; color: var(--faint); font-size: 12px; text-align: center; }
+
+@media (max-width: 640px) {
+    .topbar { padding: 10px 16px; }
+    .brand-text, .session-name { display: none; }
+    .page { padding: 24px 16px 48px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .game { grid-template-columns: 96px 1fr; gap: 12px; }
+    .mini-board { width: 96px; height: 96px; }
+    .mini-board span { font-size: 12px; }
+    .when { margin-left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<header class='topbar'>
+    <a class='brand' href='/index' aria-label='3D Chess, back to the game'>
+        <span class='brand-mark' aria-hidden='true'>&#9822;</span>
+        <span class='brand-text'>3D Chess</span>
+    </a>
+    <div class='topbar-right'>
+        <a class='btn btn-primary' href='/index'>New game</a>
+        <div id='session' class='session' hidden>
+            <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
+            <span id='sessionName' class='session-name'></span>
+            <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
+        </div>
+    </div>
+</header>
+
+<main class='page'>
+    <h1>Game history</h1>
+    <p class='sub'>Your games against the computer, most recent first.</p>
+
+    <section class='stats' id='stats' aria-label='Totals' hidden>
+        <div class='stat'><div class='stat-value' id='statPlayed'>0</div><div class='stat-label'>Played</div></div>
+        <div class='stat win'><div class='stat-value' id='statWins'>0</div><div class='stat-label'>Wins</div></div>
+        <div class='stat loss'><div class='stat-value' id='statLosses'>0</div><div class='stat-label'>Losses</div></div>
+        <div class='stat draw'><div class='stat-value' id='statDraws'>0</div><div class='stat-label'>Draws</div></div>
+    </section>
+
+    <div class='filters' id='filters' role='group' aria-label='Filter games' hidden></div>
+
+    <div id='loading' class='games' aria-busy='true' aria-label='Loading games'>
+        <div class='skeleton'></div><div class='skeleton'></div><div class='skeleton'></div>
+    </div>
+
+    <div id='games' class='games'></div>
+
+    <div id='empty' class='state' hidden>
+        <div class='state-mark' aria-hidden='true'>&#9816;</div>
+        <h2 id='emptyTitle'>No games yet</h2>
+        <p id='emptyText'>Games you play are saved here automatically.</p>
+        <a class='btn btn-primary' href='/index' id='emptyAction'>Play your first game</a>
+    </div>
+
+    <div id='error' class='state' role='alert' hidden>
+        <div class='state-mark' aria-hidden='true'>&#9888;&#xFE0E;</div>
+        <h2>Couldn't load your games</h2>
+        <p>Check your connection and try again.</p>
+        <button type='button' class='btn' onclick='loadGames()'>Try again</button>
+    </div>
+
+    <p class='note' id='limitNote' hidden>Showing your 50 most recent games.</p>
+</main>
+
+<script>
+// filled glyphs for both colours, styled per side; FE0E keeps them as text instead of emoji
+const GLYPH = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
+const TEXT_STYLE = "︎";
+const RESULTS = {
+    win:  { label: "Win" },
+    loss: { label: "Loss" },
+    draw: { label: "Draw" },
+    open: { label: "Unfinished" }
+};
+const FILTERS = [["all", "All"], ["win", "Wins"], ["loss", "Losses"], ["draw", "Draws"], ["open", "Unfinished"]];
+
+let games = [];
+let filter = "all";
+
+function $id(id){ return document.getElementById(id); }
+
+function el(tag, className, text){
+    const node = document.createElement(tag);
+    if(className) node.className = className;
+    if(text !== undefined) node.textContent = text;
+    return node;
+}
+
+function resultOf(game){
+    if(game.status === "CHECKMATE") return game.winner === game.color ? "win" : "loss";
+    if(game.status === "STALEMATE" || game.status === "DRAW") return "draw";
+    return "open";
+}
+
+function endingOf(game){
+    return { CHECKMATE: "Checkmate", STALEMATE: "Stalemate", DRAW: "Draw", IN_PROGRESS: "Not finished" }[game.status] || game.status;
+}
+
+function opponentName(key){
+    if(key === "COMPUTER") return "Computer";
+    if(key.startsWith("guest:")) return "Guest";
+    return "Another player";
+}
+
+function capitalize(word){
+    return word.charAt(0) + word.slice(1).toLowerCase();
+}
+
+// "3 hours ago" style, with the exact date and time as a tooltip
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+function when(iso){
+    const date = new Date(iso);
+    const seconds = (date.getTime() - Date.now()) / 1000;
+    const steps = [[60, "second"], [60, "minute"], [24, "hour"], [7, "day"], [4.35, "week"], [12, "month"], [Infinity, "year"]];
+    let value = seconds;
+    for(const [size, unit] of steps){
+        if(Math.abs(value) < size) return { text: relative.format(Math.round(value), unit), title: date.toLocaleString() };
+        value /= size;
+    }
+}
+
+/** The position from the player's side of the board: black games are shown with black at the bottom. */
+function miniBoard(fen, color){
+    const board = el("div", "mini-board");
+    board.setAttribute("role", "img");
+    board.setAttribute("aria-label", "Final position");
+    const rows = fen.split(" ")[0].split("/").map(row => {
+        const cells = [];
+        for(const ch of row){
+            if(/\d/.test(ch)) for(let i = 0; i < Number(ch); i++) cells.push(null);
+            else cells.push(ch);
+        }
+        return cells;
+    });
+    const flip = color === "BLACK";
+    for(let r = 0; r < 8; r++){
+        for(let f = 0; f < 8; f++){
+            const rank = flip ? 7 - r : r, file = flip ? 7 - f : f;
+            const square = el("span", (rank + file) % 2 === 0 ? "l" : "d");
+            const piece = rows[rank][file];
+            if(piece){
+                square.textContent = GLYPH[piece.toLowerCase()] + TEXT_STYLE;
+                square.classList.add(piece === piece.toUpperCase() ? "pw" : "pb");
+            }
+            board.appendChild(square);
+        }
+    }
+    return board;
+}
+
+function moveList(moves){
+    const list = el("ol", "moves");
+    const plies = moves ? moves.split(" ") : [];
+    if(plies.length === 0){
+        list.appendChild(el("li", "none", "No moves were played."));
+        return list;
+    }
+    for(let i = 0; i < plies.length; i += 2){
+        const li = el("li");
+        li.appendChild(el("span", "num", (i / 2 + 1) + "."));
+        li.appendChild(document.createTextNode(plies[i] + (plies[i + 1] ? " " + plies[i + 1] : "")));
+        list.appendChild(li);
+    }
+    return list;
+}
+
+function gameCard(game){
+    const result = resultOf(game);
+    const card = el("article", "game");
+    card.appendChild(miniBoard(game.fen, game.color));
+
+    const body = el("div", "game-body");
+    const head = el("div", "game-head");
+    head.appendChild(el("span", "badge " + result, RESULTS[result].label));
+    const vs = el("span", "vs");
+    vs.appendChild(el("span", "swatch " + game.color.toLowerCase()));
+    vs.appendChild(document.createTextNode(capitalize(game.color) + " vs " + opponentName(game.opponent)));
+    head.appendChild(vs);
+    const time = when(game.updatedAt);
+    const stamp = el("time", "when", time.text);
+    stamp.dateTime = game.updatedAt;
+    stamp.title = time.title;
+    head.appendChild(stamp);
+    body.appendChild(head);
+
+    const fullMoves = Math.ceil(game.moveCount / 2);
+    body.appendChild(el("div", "meta", endingOf(game) + " · " + fullMoves + (fullMoves === 1 ? " move" : " moves")));
+
+    const details = el("details");
+    details.appendChild(el("summary", null, "Show moves"));
+    details.appendChild(moveList(game.moves));
+    details.addEventListener("toggle", () => { details.querySelector("summary").textContent = details.open ? "Hide moves" : "Show moves"; });
+    body.appendChild(details);
+
+    card.appendChild(body);
+    return card;
+}
+
+function render(){
+    const counts = { all: games.length, win: 0, loss: 0, draw: 0, open: 0 };
+    games.forEach(g => counts[resultOf(g)]++);
+
+    $id("statPlayed").textContent = counts.all;
+    $id("statWins").textContent = counts.win;
+    $id("statLosses").textContent = counts.loss;
+    $id("statDraws").textContent = counts.draw;
+    $id("stats").hidden = games.length === 0;
+
+    const filters = $id("filters");
+    filters.textContent = "";
+    FILTERS.forEach(([key, label]) => {
+        const chip = el("button", "chip", label);
+        chip.type = "button";
+        chip.setAttribute("aria-pressed", String(filter === key));
+        chip.appendChild(el("span", "count", String(counts[key])));
+        chip.addEventListener("click", () => { filter = key; render(); });
+        filters.appendChild(chip);
+    });
+    filters.hidden = games.length === 0;
+
+    const shown = games.filter(g => filter === "all" || resultOf(g) === filter);
+    const list = $id("games");
+    list.textContent = "";
+    shown.forEach(g => list.appendChild(gameCard(g)));
+
+    const empty = $id("empty");
+    empty.hidden = shown.length > 0;
+    if(games.length === 0){
+        $id("emptyTitle").textContent = "No games yet";
+        $id("emptyText").textContent = "Games you play are saved here automatically.";
+        $id("emptyAction").hidden = false;
+    }
+    else{
+        $id("emptyTitle").textContent = "Nothing here";
+        $id("emptyText").textContent = "None of your games match this filter.";
+        $id("emptyAction").hidden = true;
+    }
+    $id("limitNote").hidden = games.length < 50;
+}
+
+function loadGames(){
+    $id("error").hidden = true;
+    $id("loading").hidden = false;
+    fetch("/game/mine")
+    .then(checkAuth)
+    .then(re => { if(!re.ok) throw new Error("HTTP " + re.status); return re.json(); })
+    .then(data => {
+        games = data;
+        $id("loading").hidden = true;
+        render();
+    })
+    .catch(err => {
+        console.log(err);
+        $id("loading").hidden = true;
+        $id("error").hidden = false;
+    });
+}
+
+loadUser();
+loadGames();
+</script>
+</body>
+</html>

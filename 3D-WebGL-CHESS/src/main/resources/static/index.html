@@ -6,6 +6,7 @@
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 
 <!-- JavaScript Libraries //-->
+<script type='text/javascript' src='/static/js/session.js'></script>
 <script type='text/javascript' src='/static/js/gl-matrix-min.js'></script>
 
 <script type='text/javascript' src='/static/js/utils.js'></script>
@@ -95,6 +96,21 @@ body {
     letter-spacing: 0.02em;
 }
 .brand-mark { font-size: 22px; line-height: 1; color: var(--accent); }
+
+.topbar-left { display: flex; align-items: center; gap: 8px; }
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s;
+}
+.nav-link:hover { background: var(--glass-strong); }
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .session {
     display: flex;
@@ -303,9 +319,12 @@ kbd {
 <canvas id='canvas' tabindex='0' aria-label='3D chess board. Drag to orbit the camera.'></canvas>
 
 <header class='topbar'>
-    <div class='brand glass'>
-        <span class='brand-mark' aria-hidden='true'>&#9822;</span>
-        <span class='brand-text'>3D Chess</span>
+    <div class='topbar-left'>
+        <div class='brand glass'>
+            <span class='brand-mark' aria-hidden='true'>&#9822;</span>
+            <span class='brand-text'>3D Chess</span>
+        </div>
+        <a class='nav-link glass' href='/history'>History</a>
     </div>
     <div id='session' class='session glass' hidden>
         <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
@@ -422,39 +441,6 @@ var gameId = '123';
 var playerId = "";
 var moveLock = false;
 var startingColor = "WHITE";
-
-function csrfToken(){
-    const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : "";
-}
-
-// Session expired or not logged in: go back to the login page
-function checkAuth(re){
-    if(re.status === 401){
-        window.location.href = "/";
-        throw new Error("Not logged in");
-    }
-    return re;
-}
-
-function loadUser(){
-    fetch("/auth/user")
-    .then(re => re.status === 200 ? re.json() : null)
-    .then(user => {
-        if(!user) return;
-        document.getElementById("sessionName").textContent = user.name || user.email;
-        const picture = document.getElementById("sessionPicture");
-        if(user.picture) picture.src = user.picture; else picture.hidden = true;
-        document.getElementById("session").hidden = false;
-    });
-}
-
-function signOut(){
-    fetch("/logout", {
-        method: "POST",
-        headers: { 'X-XSRF-TOKEN': csrfToken() }
-    }).finally(() => window.location.href = "/");
-}
 
 /* ---------- HUD ---------- */
 
@@ -661,7 +647,7 @@ async function getGameId(){
         method: "GET",
     })
     .then(checkAuth)
-    .then(re => re.json())
+    .then(readResult)
     .then(data => {
         gameId = data.gameId;
         playerId = data.playerId;
@@ -673,9 +659,18 @@ async function getGameId(){
     });
 }
 
+// the server checks every move: it must be this player's game, their turn, and a legal move
+function readResult(re){
+    if(!re.ok){
+        const reason = { 400: "That move was rejected.", 404: "This game is no longer available.", 409: "That move can't be played right now." };
+        throw new Error(reason[re.status] || "Something went wrong. Try again.");
+    }
+    return re.json();
+}
+
 async function postMove(move){
     console.log(JSON.stringify(move))
-    const path = `/game/${gameId}/move/${playerId}`
+    const path = `/game/${gameId}/move`
     await fetch(path , {
         method: "POST",
         headers: {
@@ -686,12 +681,19 @@ async function postMove(move){
         body: JSON.stringify(move)
     })
     .then(checkAuth)
-    .then(re => re.json())
+    .then(readResult)
     .then(re => {
         console.log(re)
         createAnime(re.move, re.moveResult);
-        refreshHud();
-    }).then(re => getOppMove())
+        if(re.status === "IN_PROGRESS"){
+            refreshHud();
+            getOppMove();
+        }
+        else{
+            thinking = false;
+            refreshHud();
+        }
+    })
     .catch(moveFailed);
 }
 
@@ -699,6 +701,7 @@ function moveFailed(err){
     console.log(err);
     thinking = false;
     refreshHud();
+    if(err && err.message && !chess.game_over()) setStatus(err.message, "check");
 }
 
 function getOppMove(move){
@@ -708,7 +711,7 @@ function getOppMove(move){
         method: "GET",
     })
         .then(checkAuth)
-        .then(re => re.json())
+        .then(readResult)
         .then(re => {
             console.log(re)
             createAnime(re.move, re.moveResult)

@@ -1,12 +1,12 @@
 package com.jblazing.matchmaking;
 
-import java.util.UUID;
+import com.jblazing.player.Player;
 
 public interface MatchMakingService {
 
-    boolean joinQueue(UUID playerId);
+    boolean joinQueue(Player player);
 
-    boolean leaveQueue(UUID playerId);
+    boolean leaveQueue(Player player);
 
     /**
      * Get the size queue

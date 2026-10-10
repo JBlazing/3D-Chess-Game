@@ -1,13 +1,12 @@
 package com.jblazing.controller;
 
 import com.jblazing.matchmaking.MatchMakingService;
+import com.jblazing.player.Player;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/queue")
@@ -19,13 +18,13 @@ public class QueueController {
 
 
     @PutMapping("join")
-    public boolean joinQueue(UUID playerId){
-        return matchMakingService.joinQueue(playerId);
+    public boolean joinQueue(Player player){
+        return matchMakingService.joinQueue(player);
     }
 
     @DeleteMapping("leave")
-    public boolean leaveQueue(UUID playerId){
-        return matchMakingService.leaveQueue(playerId);
+    public boolean leaveQueue(Player player){
+        return matchMakingService.leaveQueue(player);
     }
 
 

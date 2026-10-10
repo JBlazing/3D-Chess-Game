@@ -10,3 +10,6 @@
 
 # Maven build output
 /3D-WebGL-CHESS/target/
+
+# Local SQLite database
+/3D-WebGL-CHESS/chess.db*

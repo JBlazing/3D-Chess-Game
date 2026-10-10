@@ -22,11 +22,13 @@ public class BaseController{
 
     private final String indexHtml;
     private final String loginHtml;
+    private final String historyHtml;
     private final boolean authEnabled;
 
     public BaseController(ObjectProvider<ClientRegistrationRepository> clientRegistrations) throws URISyntaxException, IOException {
         this.loginHtml = Files.readString(Paths.get(getClass().getResource("/static/login.html").toURI()));
         this.indexHtml = Files.readString(Paths.get(getClass().getResource("/static/index.html").toURI()));
+        this.historyHtml = Files.readString(Paths.get(getClass().getResource("/static/history.html").toURI()));
         this.authEnabled = clientRegistrations.getIfAvailable() != null;
     }
 
@@ -43,6 +45,11 @@ public class BaseController{
     @GetMapping("/index")
     public ResponseEntity<String> index() {
         return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(indexHtml);
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<String> history() {
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(historyHtml);
     }
 
 

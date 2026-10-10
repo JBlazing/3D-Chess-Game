@@ -54,7 +54,7 @@ public class JavaScriptEngine {
                 if(!res.isNull()){
                     Result result = res.as(Result.class);
                     // TODO Copy History object correctly
-                    resultOpt = Optional.of(new Result(result.move(), Map.copyOf(result.moveResult()), result.boardState(), Map.of()));
+                    resultOpt = Optional.of(new Result(result.move(), Map.copyOf(result.moveResult()), result.boardState(), Map.of(), result.status()));
                 }
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
