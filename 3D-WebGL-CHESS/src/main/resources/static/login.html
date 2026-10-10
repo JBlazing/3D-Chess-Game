@@ -1,18 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>3D Chess</title>
-    <meta http-equiv='content-type' content='text/html; charset=ISO-8859-1'>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>3D Chess - Sign in</title>
+    <style>
+        * { box-sizing: border-box; }
 
-    <!-- JavaScript Libraries //-->
+        html, body { height: 100%; margin: 0; }
 
+        body {
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: #120a14;
+            color: #f4eef2;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+        }
 
+        /* Blurred skybox from the game behind everything */
+        .backdrop {
+            position: fixed;
+            inset: -40px;
+            background: url("/static/Skybox/spire_ft.png") center / cover no-repeat;
+            filter: blur(18px) saturate(1.2);
+            z-index: -2;
+        }
+
+        .backdrop::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(18, 10, 20, 0.35), rgba(18, 10, 20, 0.85));
+        }
+
+        /* Faint checkerboard fading in from the bottom */
+        .board {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 45vh;
+            background: repeating-conic-gradient(rgba(255, 255, 255, 0.06) 0 25%, transparent 0 50%) 0 0 / 64px 64px;
+            mask-image: linear-gradient(to top, black, transparent);
+            -webkit-mask-image: linear-gradient(to top, black, transparent);
+            z-index: -1;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 380px;
+            padding: 40px 32px 32px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            background: rgba(20, 14, 24, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .crest {
+            font-size: 56px;
+            line-height: 1;
+            text-shadow: 0 4px 18px rgba(255, 120, 90, 0.45);
+        }
+
+        h1 {
+            margin: 16px 0 6px;
+            font-size: 28px;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+        }
+
+        .tagline {
+            margin: 0 0 28px;
+            color: rgba(244, 238, 242, 0.7);
+            font-size: 15px;
+        }
+
+        .error {
+            margin: 0 0 20px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 110, 110, 0.4);
+            border-radius: 8px;
+            background: rgba(255, 80, 80, 0.12);
+            color: #ffc9c9;
+            font-size: 14px;
+        }
+
+        .error[hidden] { display: none; }
+
+        /* Google's standard light sign-in button */
+        .google {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            height: 44px;
+            padding: 0 16px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            background: #fff;
+            color: #1f1f1f;
+            font: 500 15px "Roboto", system-ui, sans-serif;
+            text-decoration: none;
+            transition: background-color 0.15s, box-shadow 0.15s;
+        }
+
+        .google:hover { background: #f7f8f8; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+        .google:focus-visible { outline: 3px solid #8ab4f8; outline-offset: 2px; }
+        .google svg { width: 18px; height: 18px; flex: none; }
+
+        .fine-print {
+            margin: 20px 0 0;
+            color: rgba(244, 238, 242, 0.5);
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
 
-<div class="container unauthenticated">
-    With Google: <a href="/oauth2/authorization/google">click here</a>
-</div>
-<div class="container authenticated" style="display:none">
-    Logged in as: <span id="user"></span>
-</div>
+<div class="backdrop"></div>
+<div class="board"></div>
 
+<main class="card">
+    <div class="crest" aria-hidden="true">&#9822;</div>
+    <h1>3D Chess</h1>
+    <p class="tagline">Sign in to start a game.</p>
+
+    <p class="error" id="error" role="alert" hidden></p>
+
+    <a class="google" href="/oauth2/authorization/google">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Sign in with Google
+    </a>
+
+    <p class="fine-print">We only use your Google name and email to identify you in games.</p>
+</main>
+
+<script>
+    // Spring Security redirects here with ?error when the Google login fails
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("error")) {
+        const error = document.getElementById("error");
+        error.textContent = "Sign-in didn't complete. Please try again.";
+        error.hidden = false;
+    }
+</script>
 </body>
+</html>

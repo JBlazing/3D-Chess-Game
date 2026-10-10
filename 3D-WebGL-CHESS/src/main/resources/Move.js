@@ -4,12 +4,17 @@ function evalMove(playerMove, currentBoardState) {
 
     let move;
     if(playerMove) {
-        move = {"from": playerMove.from(), "to": playerMove.to()};
+        // chess.js only matches a promotion move when the piece is given; the field is ignored otherwise
+        move = {"from": playerMove.from(), "to": playerMove.to(), "promotion": playerMove.promotion() || "q"};
     } else{
-        let moves = game.moves({verbose: true});
-        let p = Math.floor(Math.random() * (moves.length+1))
+        // chess.js lists a promotion once per piece; the computer always promotes to a queen
+        let moves = game.moves({verbose: true}).filter(m => !m.promotion || m.promotion === "q");
+        if(moves.length === 0) {
+            return null;
+        }
+        let p = Math.floor(Math.random() * moves.length)
         move = moves[p];
-        playerMove = new (Java.type("com.jblazing.model.Move"))(move.from,move.to)
+        playerMove = new (Java.type("com.jblazing.model.Move"))(move.from, move.to, move.promotion || null)
     }
     log.info(playerMove.toString())
     log.info(JSON.stringify(move));

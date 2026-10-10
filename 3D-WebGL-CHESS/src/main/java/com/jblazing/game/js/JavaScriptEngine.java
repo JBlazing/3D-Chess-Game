@@ -27,6 +27,7 @@ public class JavaScriptEngine {
     private final Source chessJsSource;
     private final ExecutorService executor;
     private final Duration executorTimeout;
+
     public JavaScriptEngine(@Value("${game.chess.js.location}") String chessJs,
                             @Value("${game.chess.move.js.location}") String moveJs,
                             @Value("${game.chess.engine.executor.timeout:PT5S}") Duration executorTimeout) throws IOException, URISyntaxException {
@@ -40,7 +41,6 @@ public class JavaScriptEngine {
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.executorTimeout = executorTimeout;
     }
-
 
     public Optional<Result> move(Move move, String boardState)
     {

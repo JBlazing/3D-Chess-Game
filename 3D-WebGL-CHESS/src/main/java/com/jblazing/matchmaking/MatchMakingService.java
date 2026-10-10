@@ -8,5 +8,10 @@ public interface MatchMakingService {
 
     boolean leaveQueue(UUID playerId);
 
+    /**
+     * Get the size queue
+     *
+     * @return
+     */
     int getQueueSize();
 }

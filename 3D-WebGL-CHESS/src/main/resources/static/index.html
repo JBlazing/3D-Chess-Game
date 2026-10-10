@@ -1,6 +1,9 @@
+<!DOCTYPE html>
+<html lang='en'>
 <head>
-<title>#D Chess</title>
-<meta http-equiv='content-type' content='text/html; charset=ISO-8859-1'>
+<title>3D Chess</title>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
 
 <!-- JavaScript Libraries //-->
 <script type='text/javascript' src='/static/js/gl-matrix-min.js'></script>
@@ -16,14 +19,363 @@
 <script type='text/javascript' src='/static/js/Animation.js'></script>
 <script type='text/javascript' src='/static/js/AI.js'></script>
 
+<style>
+:root {
+    --bg: #0d0910;
+    --glass: rgba(18, 13, 22, 0.72);
+    --glass-strong: rgba(18, 13, 22, 0.9);
+    --line: rgba(255, 255, 255, 0.1);
+    --text: #f4eef2;
+    --muted: rgba(244, 238, 242, 0.62);
+    --faint: rgba(244, 238, 242, 0.38);
+    --accent: #ff7a5c;
+    --accent-soft: rgba(255, 122, 92, 0.16);
+    --danger: #ff6b6b;
+    --radius: 14px;
+    color-scheme: dark;
+}
 
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+
+body {
+    /* echoes the skybox so the area behind the panel doesn't read as a hard edge */
+    background: radial-gradient(ellipse at 70% 0%, #3a1622, transparent 60%), var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+}
+
+/* The 3D scene fills everything left of the panel; the HUD floats on top */
+#canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--panel-space, 332px);
+    bottom: 0;
+    display: block;
+    width: calc(100% - var(--panel-space, 332px));
+    height: 100%;
+    cursor: grab;
+    outline: none;
+}
+#canvas:active { cursor: grabbing; }
+
+.glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- Top bar ---- */
+.topbar {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    right: calc(var(--panel-space, 332px) + 16px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 12px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.brand-mark { font-size: 22px; line-height: 1; color: var(--accent); }
+
+.session {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+.session img { width: 26px; height: 26px; border-radius: 50%; }
+.session-name { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ---- Buttons ---- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: transparent; color: #1a0d09; font-weight: 650; }
+.btn-primary:hover:not(:disabled) { background: #ff8f75; }
+.btn-pill { border-radius: 999px; height: 28px; padding: 0 12px; }
+.btn-block { width: 100%; }
+
+/* ---- Side panel ---- */
+/* docked flush to the right edge, exactly where the canvas ends */
+.panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--panel-space, 332px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 8px;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.section:last-child { border-bottom: 0; }
+.section-title {
+    margin: 0 0 10px;
+    color: var(--faint);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.players { display: grid; gap: 8px; }
+.player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.player.active { background: var(--accent-soft); border-color: rgba(255, 122, 92, 0.35); }
+.swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.swatch.white { background: #f4efe6; }
+.swatch.black { background: #2a2230; border: 1px solid rgba(255, 255, 255, 0.25); }
+.player-name { flex: 1; }
+.player-tag { color: var(--muted); font-size: 12px; }
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.status.check { color: var(--danger); font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.status.thinking .dot { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+.selected-move {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.selected-san { font-size: 26px; font-weight: 650; letter-spacing: 0.01em; }
+.selected-detail { color: var(--muted); font-size: 13px; }
+.move-controls { display: grid; grid-template-columns: 72px 1fr 72px; gap: 8px; }
+.move-controls .btn { padding: 0 8px; white-space: nowrap; }
+
+.captured { display: grid; gap: 6px; font-size: 13px; }
+.captured-row { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+.captured-label { width: 44px; color: var(--muted); }
+.captured-pieces { font-size: 19px; line-height: 1; letter-spacing: 1px; }
+.captured-none { color: var(--faint); font-size: 12px; }
+
+.history-section { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.history {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    font-variant-numeric: tabular-nums;
+}
+.history li {
+    display: grid;
+    grid-template-columns: 34px 1fr 1fr;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+.history li:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
+.history .num { color: var(--faint); }
+.history .last { color: var(--accent); font-weight: 600; }
+.history-empty { margin: 0; color: var(--faint); font-size: 13px; }
+
+/* ---- Controls hint ---- */
+.hint {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    max-width: calc(100% - var(--panel-space, 332px) - 32px);
+    padding: 10px 14px;
+    color: var(--muted);
+    font-size: 12px;
+}
+.hint span { white-space: nowrap; }
+kbd {
+    display: inline-block;
+    min-width: 20px;
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    font: 11px/16px ui-monospace, "Cascadia Mono", Consolas, monospace;
+    text-align: center;
+}
+
+/* ---- Game over ---- */
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(8, 5, 10, 0.55);
+    animation: fade 0.3s ease-out;
+}
+@keyframes fade { from { opacity: 0; } }
+.result-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 32px 28px 28px;
+    background: var(--glass-strong);
+    text-align: center;
+}
+.result-crest { font-size: 48px; line-height: 1; color: var(--accent); }
+.result-title { margin: 14px 0 6px; font-size: 24px; }
+.result-detail { margin: 0 0 24px; color: var(--muted); }
+
+/* ---- Small screens: panel becomes a bottom sheet ---- */
+@media (max-width: 720px) {
+    /* scene on top, game sheet below */
+    #canvas { right: 0; bottom: calc(46vh + 24px); width: 100%; height: calc(100% - 46vh - 24px); }
+    .topbar { right: 16px; }
+    .panel {
+        top: auto; left: 16px; right: 16px; bottom: 16px; width: auto; height: 46vh;
+        overflow-y: auto; padding-top: 0;
+        border-width: 1px; border-radius: var(--radius); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    }
+    .history-section { flex: none; }
+    .history { max-height: 140px; }
+    .hint { display: none; }
+    .brand-text { display: none; }
+    .session-name { max-width: 110px; }
+}
+</style>
 </head>
 <body>
 
-<div id='contents'>
-    <div id='canvasContainer'>
-        <canvas id='canvas' width='1280' height='720'>
-        </canvas>
+<canvas id='canvas' tabindex='0' aria-label='3D chess board. Drag to orbit the camera.'></canvas>
+
+<header class='topbar'>
+    <div class='brand glass'>
+        <span class='brand-mark' aria-hidden='true'>&#9822;</span>
+        <span class='brand-text'>3D Chess</span>
+    </div>
+    <div id='session' class='session glass' hidden>
+        <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
+        <span id='sessionName' class='session-name'></span>
+        <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
+    </div>
+</header>
+
+<aside class='panel glass' aria-label='Game'>
+    <section class='section'>
+        <h2 class='section-title'>Game</h2>
+        <div class='players'>
+            <div class='player' id='playerBlack'>
+                <span class='swatch black'></span>
+                <span class='player-name'>Computer</span>
+                <span class='player-tag'>Black</span>
+            </div>
+            <div class='player' id='playerWhite'>
+                <span class='swatch white'></span>
+                <span class='player-name'>You</span>
+                <span class='player-tag'>White</span>
+            </div>
+        </div>
+        <div class='status' id='status' role='status'><span class='dot'></span><span id='statusText'>Starting game&hellip;</span></div>
+    </section>
+
+    <section class='section'>
+        <h2 class='section-title'>Your move</h2>
+        <div class='selected-move'>
+            <span class='selected-san' id='selectedSan'>&mdash;</span>
+            <span class='selected-detail' id='selectedDetail'></span>
+        </div>
+        <div class='move-controls'>
+            <button type='button' class='btn' id='prevMove' onclick='selectMove(-1)' aria-label='Previous move'>&larr; Prev</button>
+            <button type='button' class='btn btn-primary' id='playMove' onclick='playSelected()'>Play move</button>
+            <button type='button' class='btn' id='nextMove' onclick='selectMove(1)' aria-label='Next move'>Next &rarr;</button>
+        </div>
+    </section>
+
+    <section class='section'>
+        <h2 class='section-title'>Captured</h2>
+        <div class='captured'>
+            <div class='captured-row'><span class='captured-label'>You</span><span class='captured-pieces' id='capturedByWhite'></span></div>
+            <div class='captured-row'><span class='captured-label'>Rival</span><span class='captured-pieces' id='capturedByBlack'></span></div>
+        </div>
+    </section>
+
+    <section class='section history-section'>
+        <h2 class='section-title'>Moves</h2>
+        <p class='history-empty' id='historyEmpty'>No moves yet.</p>
+        <ol class='history' id='history'></ol>
+    </section>
+
+    <section class='section'>
+        <button type='button' class='btn btn-block' onclick='newGame()'>New game</button>
+    </section>
+</aside>
+
+<div class='hint glass' aria-label='Controls'>
+    <span><kbd>A</kbd> <kbd>D</kbd> cycle moves</span>
+    <span><kbd>Enter</kbd> play</span>
+    <span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> or drag to orbit</span>
+    <span><kbd>Alt</kbd> + drag to zoom</span>
+</div>
+
+<div class='overlay' id='gameOver' hidden>
+    <div class='result-card glass' role='dialog' aria-modal='true' aria-labelledby='resultTitle'>
+        <div class='result-crest' aria-hidden='true'>&#9818;</div>
+        <h2 class='result-title' id='resultTitle'></h2>
+        <p class='result-detail' id='resultDetail'></p>
+        <button type='button' class='btn btn-primary btn-block' onclick='newGame()'>Play again</button>
     </div>
 </div>
 
@@ -69,16 +421,203 @@ var playerId = "";
 var moveLock = false;
 var startingColor = "WHITE";
 
+function csrfToken(){
+    const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+}
+
+// Session expired or not logged in: go back to the login page
+function checkAuth(re){
+    if(re.status === 401){
+        window.location.href = "/";
+        throw new Error("Not logged in");
+    }
+    return re;
+}
+
+function loadUser(){
+    fetch("/auth/user")
+    .then(re => re.status === 200 ? re.json() : null)
+    .then(user => {
+        if(!user) return;
+        document.getElementById("sessionName").textContent = user.name || user.email;
+        const picture = document.getElementById("sessionPicture");
+        if(user.picture) picture.src = user.picture; else picture.hidden = true;
+        document.getElementById("session").hidden = false;
+    });
+}
+
+function signOut(){
+    fetch("/logout", {
+        method: "POST",
+        headers: { 'X-XSRF-TOKEN': csrfToken() }
+    }).finally(() => window.location.href = "/");
+}
+
+/* ---------- HUD ---------- */
+
+var thinking = false;      // waiting on the server for our move + the computer's reply
+var gameOverShown = false;
+
+const PIECE_NAMES = { p: "Pawn", n: "Knight", b: "Bishop", r: "Rook", q: "Queen", k: "King" };
+const GLYPHS = {
+    w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
+    b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" }
+};
+
+function $id(id){ return document.getElementById(id); }
+
+/*
+    chess.js lists a promotion once per piece (=Q, =R, =B, =N) with identical squares,
+    so cycling could silently pick a rook; pawns always promote to a queen
+*/
+function playerMoves(){
+    return chess.moves({verbose : true}).filter(m => !m.promotion || m.promotion === "q");
+}
+
+function canPlay(){
+    return !thinking && !chess.game_over() && chess.turn() === "w" && allMoves && allMoves.length > 0;
+}
+
+function highlightSelected(){
+    if(!allMoves || allMoves.length === 0) return;
+    const mv = allMoves[curMove];
+    try{
+        clearMoves();
+        showMove(mv.from, mv.to);
+    }
+    catch(err){
+        // models are still loading; the highlight shows up on the next selection
+    }
+}
+
+function selectMove(delta){
+    if(!canPlay()) return;
+    curMove = (curMove + delta + allMoves.length) % allMoves.length;
+    highlightSelected();
+    refreshHud();
+}
+
+function playSelected(){
+    if(!canPlay()) return;
+    const mv = allMoves[curMove];
+    move(mv.from, mv.to, mv.promotion);
+}
+
+function newGame(){
+    window.location.reload();
+}
+
+function setStatus(text, kind){
+    $id("statusText").textContent = text;
+    $id("status").className = "status" + (kind ? " " + kind : "");
+}
+
+function refreshHud(){
+    if(!chess) return;
+    const turn = chess.turn();
+    $id("playerWhite").classList.toggle("active", turn === "w" && !chess.game_over());
+    $id("playerBlack").classList.toggle("active", turn === "b" && !chess.game_over());
+
+    if(chess.game_over()) setStatus("Game over");
+    else if(thinking) setStatus("Computer is thinking…", "thinking");
+    else if(chess.in_check() && turn === "w") setStatus("Check — your move", "check");
+    else setStatus(turn === "w" ? "Your move" : "Waiting for the computer");
+
+    // Selected move
+    const playable = canPlay();
+    if(playable && curMove >= allMoves.length) curMove = 0;
+    const mv = playable ? allMoves[curMove] : null;
+    $id("selectedSan").textContent = mv ? mv.san : "—";
+    $id("selectedDetail").textContent = mv
+        ? `${PIECE_NAMES[mv.piece]} ${mv.from}→${mv.to}${mv.promotion ? " = " + PIECE_NAMES[mv.promotion] : ""} · ${curMove + 1}/${allMoves.length}`
+        : "";
+    ["prevMove", "playMove", "nextMove"].forEach(id => $id(id).disabled = !playable);
+
+    // Move list, one row per full move
+    const verbose = chess.history({ verbose: true });
+    const list = $id("history");
+    list.textContent = "";
+    for(let i = 0; i < verbose.length; i += 2){
+        const li = document.createElement("li");
+        [String(i / 2 + 1) + ".", verbose[i].san, verbose[i + 1] ? verbose[i + 1].san : ""].forEach((text, col) => {
+            const span = document.createElement("span");
+            span.textContent = text;
+            if(col === 0) span.className = "num";
+            else if(i + col - 1 === verbose.length - 1) span.className = "last";
+            li.appendChild(span);
+        });
+        list.appendChild(li);
+    }
+    $id("historyEmpty").hidden = verbose.length > 0;
+    list.scrollTop = list.scrollHeight;
+
+    // Captured pieces, grouped by who took them
+    const taken = { w: [], b: [] };
+    verbose.filter(m => m.captured).forEach(m => {
+        taken[m.color].push(GLYPHS[m.color === "w" ? "b" : "w"][m.captured]);
+    });
+    [["capturedByWhite", "w"], ["capturedByBlack", "b"]].forEach(([id, color]) => {
+        const el = $id(id);
+        el.textContent = taken[color].join("") || "None";
+        el.className = taken[color].length ? "captured-pieces" : "captured-none";
+    });
+}
+
+function showGameOver(){
+    if(gameOverShown) return;
+    gameOverShown = true;
+    let title, detail;
+    if(chess.in_checkmate()){
+        const youWon = chess.turn() === "b";
+        title = youWon ? "Checkmate — you win" : "Checkmate — you lose";
+        detail = youWon ? "Nicely played." : "The computer got you this time.";
+    }
+    else if(chess.in_stalemate()){ title = "Stalemate"; detail = "No legal moves left — it's a draw."; }
+    else if(chess.in_threefold_repetition()){ title = "Draw"; detail = "Threefold repetition."; }
+    else if(chess.insufficient_material()){ title = "Draw"; detail = "Not enough material to checkmate."; }
+    else { title = "Draw"; detail = "Fifty-move rule."; }
+    $id("resultTitle").textContent = title;
+    $id("resultDetail").textContent = detail;
+    $id("gameOver").hidden = false;
+    refreshHud();
+}
+
+// Match the canvas resolution to its on-screen size so the scene stays sharp and undistorted
+function resizeCanvas(){
+    const c = $id("canvas");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(c.clientWidth * dpr));
+    const h = Math.max(1, Math.round(c.clientHeight * dpr));
+    if(c.width !== w || c.height !== h){
+        c.width = w;
+        c.height = h;
+    }
+    if(gl){
+        gl.viewportWidth = w;
+        gl.viewportHeight = h;
+    }
+}
+
+/* ---------- Server calls ---------- */
+
 async function getGameId(){
     const params = new URLSearchParams()
     params.append("startingSide", startingColor)
     fetch(`/game/start?${params}`, {
         method: "GET",
     })
+    .then(checkAuth)
     .then(re => re.json())
     .then(data => {
         gameId = data.gameId;
         playerId = data.playerId;
+        highlightSelected();
+        refreshHud();
+    })
+    .catch(err => {
+        console.log(err);
+        setStatus("Couldn't start a game. Try reloading.", "check");
     });
 }
 
@@ -89,15 +628,25 @@ async function postMove(move){
         method: "POST",
         headers: {
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': csrfToken()
         },
         body: JSON.stringify(move)
     })
+    .then(checkAuth)
     .then(re => re.json())
     .then(re => {
         console.log(re)
         createAnime(re.move, re.moveResult);
-    }).then(re => getOppMove());
+        refreshHud();
+    }).then(re => getOppMove())
+    .catch(moveFailed);
+}
+
+function moveFailed(err){
+    console.log(err);
+    thinking = false;
+    refreshHud();
 }
 
 function getOppMove(move){
@@ -106,69 +655,109 @@ function getOppMove(move){
     fetch(path , {
         method: "GET",
     })
+        .then(checkAuth)
         .then(re => re.json())
         .then(re => {
             console.log(re)
             createAnime(re.move, re.moveResult)
-            allMoves = chess.moves({verbose : true});
-        });
+            allMoves = playerMoves();
+            curMove = 0;
+            thinking = false;
+            highlightSelected();
+            refreshHud();
+        })
+        .catch(moveFailed);
 }
 
-function move(from, to){
-    postMove({from: from , to: to})//chess.move({from: from , to: to})
+function move(from, to, promotion){
+    if(thinking) return;
+    thinking = true;
+    refreshHud();
+    postMove({from: from , to: to, promotion: promotion || null})
 }
+// cord is the piece's logical square; captured or replaced pieces have it cleared
+function pieceAt(square){
+    return Scene.objects.filter(obj => obj.cord == square)[0];
+}
+
+function animateTo(obj, square){
+    obj.cord = square;
+    obj.animation = Animation.createAnimation(obj.location , Pos[obj.name][square]);
+}
+
+function whenLanded(obj, callback){
+    (function check(){
+        if(obj.animation) requestAnimFrame(check);
+        else callback();
+    })();
+}
+
+/*
+    Every mesh is modelled at its starting square and placed with an offset from
+    Pos[meshName], so the promoted piece reuses the GPU buffers of an existing mesh
+    of that type and colour (side picks the white/black texture) and that mesh's Pos table.
+*/
+function promote(pawn, square, type){
+    const typeName = PIECE_NAMES[type];
+    const meshes = Scene.objects.filter(o => o.name && o.name.startsWith(typeName) && o.vertexBuff);
+    // same colour first: knights are modelled facing their own side
+    const template = meshes.filter(o => o.side === pawn.side)[0] || meshes[0];
+    const piece = {
+        name: template.name,
+        side: pawn.side,
+        location: Pos[template.name][square].slice(),
+        cord: square,
+        Selected: false,
+        isVisible: false,
+        promoted: true,
+        normals: template.normals,
+        vertexBuff: template.vertexBuff,
+        IdxBuffer: template.IdxBuffer,
+        textBuff: template.textBuff
+    };
+    Scene.objects.push(piece);
+    pawn.cord = "";
+
+    // swap models once the pawn reaches the last rank, unless the new piece was taken in the meantime
+    whenLanded(pawn, () => {
+        pawn.isVisible = false;
+        if(piece.cord) piece.isVisible = true;
+    });
+}
+
+/*
+    localMove is the {from, to} that was sent; move is the server's verbose
+    chess.js result, which is what knows about captures, castling and promotion
+*/
 function createAnime(localMove,move){
     if(move){
         try{
-            chess.move(localMove)
-            //make the capurted piece invisible when captured
+            chess.move({from: move.from, to: move.to, promotion: move.promotion})
 
-            if(localMove.hasOwnProperty("captured")){
-
-                let scn  = Scene.objects.filter(obj => obj.cord == to)[0];
-                scn.isVisible = false;
-                scn.cord = ""
-            }
-
-            /*
-                Check for a castle move and then move the rook acordinay
-            */
-
-            if(localMove.hasOwnProperty("san") && (localMove.san == "O-O" || localMove.san == "O-O-O")){
-                if(localMove.to == "g1"){
-                    let a =  Scene.objects.filter(x => x.cord == "h1")[0];
-                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["f1"])
-                    a.cord = "f1";
-
-                }
-                else if(localMove.to == "c1"){
-                    let a =  Scene.objects.filter(x => x.cord == "a1")[0];
-                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["d1"])
-
-                }
-                else if(localMove.to == "g8"){
-                    let a =  Scene.objects.filter(x => x.cord == "h8")[0];
-                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["f8"])
-
-                }
-                else if(localMove.to == "c8"){
-                    let a =  Scene.objects.filter(x => x.cord == "a8")[0];
-                    a.animation = Animation.createAnimation(a.location , Pos[a.name]["d8"])
-
+            //make the captured piece invisible; en passant takes the pawn beside the target square
+            if(move.captured){
+                let square = move.flags.includes("e") ? move.to[0] + move.from[1] : move.to;
+                let captured = pieceAt(square);
+                if(captured){
+                    captured.isVisible = false;
+                    captured.Selected = false;
+                    captured.cord = "";
                 }
             }
 
-            let obj = Scene.objects.filter( obj => obj.cord == localMove.from)[0]
+            //castling: k = king side (h -> f), q = queen side (a -> d)
+            if(move.flags.includes("k") || move.flags.includes("q")){
+                let rank = move.from[1];
+                let kingSide = move.flags.includes("k");
+                let rook = pieceAt((kingSide ? "h" : "a") + rank);
+                if(rook) animateTo(rook, (kingSide ? "f" : "d") + rank);
+            }
 
-            obj.cord = localMove.to;
-            console.log(Pos[obj.name])
-            let end = Pos[obj.name][localMove.to];
-
-            let postions = Animation.createAnimation(obj.location , end);
-
-            console.log(postions[postions.length - 1]);
-
-            obj.animation = postions;
+            let piece = pieceAt(move.from);
+            animateTo(piece, move.to);
+            if(move.promotion){
+                promote(piece, move.to, move.promotion);
+            }
             clearMoves();
         }
         catch(err){
@@ -355,7 +944,12 @@ function main(){
 
 	chess = new Chess();
     getGameId();
+    loadUser();
+    resizeCanvas();
     utils.initGL(document.getElementById("canvas"))
+    window.addEventListener("resize", resizeCanvas);
+    // Keyboard controls live in CameraInteractor; keep the panel in sync with them
+    window.addEventListener("keydown", () => refreshHud());
 
     utils.initShaders();
 	initSkybox(["aVertexPosition",
@@ -454,7 +1048,8 @@ function main(){
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 	
-	allMoves = chess.moves({verbose : true});
+	allMoves = playerMoves();
+    refreshHud();
     tick();
 	
 }

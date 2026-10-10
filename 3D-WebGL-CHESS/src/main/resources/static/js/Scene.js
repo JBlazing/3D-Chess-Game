@@ -209,7 +209,8 @@ var Scene = {
 			function(url , func)
 			{
 				let xhr = new XMLHttpRequest();
-				let resource = window.location.protocol + "//" +  window.location.host + '/static/' + url;
+				// strip leading slashes: "/static//x" is rejected by Spring Security's firewall
+				let resource = window.location.protocol + "//" +  window.location.host + '/static/' + url.replace(/^\/+/, '');
 				xhr.open("GET" , resource , false);
 				xhr.onload = () => func(xhr.responseText)
 				xhr.send();

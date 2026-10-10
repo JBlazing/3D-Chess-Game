@@ -247,8 +247,7 @@ var utils = {
 		
 		requestAnimFrame(tick);
 		if(chess.game_over()){
-			window.location.replace("https://www.youtube.com/watch?v=oyFQVZ2h0V8");
-			
+			showGameOver();
 		}
 		Scene.Draw();
 		utils.animate();
