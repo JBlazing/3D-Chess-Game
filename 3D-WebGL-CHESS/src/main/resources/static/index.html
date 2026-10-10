@@ -139,6 +139,7 @@ body {
     font-size: 13px;
     font-weight: 500;
     line-height: 1;
+    text-decoration: none;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
 }
@@ -247,6 +248,46 @@ body {
 .history .last { color: var(--accent); font-weight: 600; }
 .history-empty { margin: 0; color: var(--faint); font-size: 13px; }
 
+/* ---- Replay ---- */
+.replay-result { margin-bottom: 10px; font-weight: 600; }
+.replay-result.win { color: #6fd3a0; }
+.replay-result.loss { color: #ff7b7b; }
+.replay-result.draw { color: #c8b8ff; }
+.replay-result.open { color: var(--muted); }
+.replay-position { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.scrubber {
+    width: 100%;
+    height: 4px;
+    margin: 0 0 14px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--accent) var(--fill, 0%), rgba(255, 255, 255, 0.14) var(--fill, 0%));
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+.scrubber::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 0; }
+.scrubber::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 0; }
+.scrubber:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.replay-controls { display: grid; grid-template-columns: 1fr 1fr 1.8fr 1fr 1fr; gap: 6px; }
+.replay-controls .btn { padding: 0 6px; white-space: nowrap; }
+
+/* moves in a replay can be clicked to jump there; moves not reached yet are dimmed */
+.history .ply {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.history .ply:hover { text-decoration: underline; }
+.history .ply:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.history .future { color: var(--faint); }
+
+.bottom-actions { display: flex; gap: 8px; }
+.bottom-actions .btn-block { flex: 1; width: auto; }
+
 /* ---- Controls hint ---- */
 .hint {
     position: fixed;
@@ -339,19 +380,36 @@ kbd {
         <div class='players'>
             <div class='player' id='playerBlack'>
                 <span class='swatch black'></span>
-                <span class='player-name'>Computer</span>
+                <span class='player-name' id='playerBlackName'>Computer</span>
                 <span class='player-tag'>Black</span>
             </div>
             <div class='player' id='playerWhite'>
                 <span class='swatch white'></span>
-                <span class='player-name'>You</span>
+                <span class='player-name' id='playerWhiteName'>You</span>
                 <span class='player-tag'>White</span>
             </div>
         </div>
         <div class='status' id='status' role='status'><span class='dot'></span><span id='statusText'>Starting game&hellip;</span></div>
     </section>
 
-    <section class='section'>
+    <section class='section' id='replaySection' hidden>
+        <h2 class='section-title'>Replay</h2>
+        <div class='replay-result' id='replayResult'></div>
+        <div class='replay-position'>
+            <span class='selected-san' id='replaySan'>Start</span>
+            <span class='selected-detail' id='replayCount'></span>
+        </div>
+        <input type='range' class='scrubber' id='replayScrub' min='0' max='0' value='0' aria-label='Position in the game'>
+        <div class='replay-controls'>
+            <button type='button' class='btn' id='replayStart' onclick='replayGoTo(0)' aria-label='Go to start'>&#9198;&#xFE0E;</button>
+            <button type='button' class='btn' id='replayBack' onclick='replayStep(-1)' aria-label='Previous move'>&#9664;&#xFE0E;</button>
+            <button type='button' class='btn btn-primary' id='replayPlay' onclick='replayToggle()' aria-label='Play'>&#9654;&#xFE0E; Play</button>
+            <button type='button' class='btn' id='replayForward' onclick='replayStep(1)' aria-label='Next move'>&#9654;&#xFE0E;</button>
+            <button type='button' class='btn' id='replayEnd' onclick='replayGoTo(replay.sans.length)' aria-label='Go to end'>&#9197;&#xFE0E;</button>
+        </div>
+    </section>
+
+    <section class='section' id='moveSection'>
         <h2 class='section-title'>Your move</h2>
         <div class='selected-move'>
             <span class='selected-san' id='selectedSan'>&mdash;</span>
@@ -367,8 +425,8 @@ kbd {
     <section class='section'>
         <h2 class='section-title'>Captured</h2>
         <div class='captured'>
-            <div class='captured-row'><span class='captured-label'>You</span><span class='captured-pieces' id='capturedByWhite'></span></div>
-            <div class='captured-row'><span class='captured-label'>Rival</span><span class='captured-pieces' id='capturedByBlack'></span></div>
+            <div class='captured-row'><span class='captured-label' id='capturedByWhiteLabel'>You</span><span class='captured-pieces' id='capturedByWhite'></span></div>
+            <div class='captured-row'><span class='captured-label' id='capturedByBlackLabel'>Rival</span><span class='captured-pieces' id='capturedByBlack'></span></div>
         </div>
     </section>
 
@@ -378,12 +436,20 @@ kbd {
         <ol class='history' id='history'></ol>
     </section>
 
-    <section class='section'>
+    <section class='section bottom-actions'>
+        <a class='btn' id='backToHistory' href='/history' hidden>&larr; History</a>
         <button type='button' class='btn btn-block' onclick='newGame()'>New game</button>
     </section>
 </aside>
 
-<div class='hint glass' aria-label='Controls'>
+<div class='hint glass' id='replayHint' aria-label='Replay controls' hidden>
+    <span><kbd>A</kbd> <kbd>D</kbd> step back / forward</span>
+    <span><kbd>Space</kbd> play / pause</span>
+    <span><kbd>Home</kbd> <kbd>End</kbd> start / end</span>
+    <span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> or drag to orbit</span>
+</div>
+
+<div class='hint glass' id='playHint' aria-label='Controls'>
     <span>Click a piece, then a square</span>
     <span><kbd>A</kbd> <kbd>D</kbd> cycle moves</span>
     <span><kbd>Enter</kbd> play</span>
@@ -464,7 +530,7 @@ function playerMoves(){
 }
 
 function canPlay(){
-    return !thinking && !chess.game_over() && chess.turn() === "w" && allMoves && allMoves.length > 0;
+    return !replay && !thinking && !chess.game_over() && chess.turn() === "w" && allMoves && allMoves.length > 0;
 }
 
 function highlightSelected(){
@@ -544,7 +610,8 @@ function onSquareHovered(square){
 }
 
 function newGame(){
-    window.location.reload();
+    // not reload(): from a replay that would just open the replay again
+    window.location.href = "/index";
 }
 
 function setStatus(text, kind){
@@ -558,38 +625,31 @@ function refreshHud(){
     $id("playerWhite").classList.toggle("active", turn === "w" && !chess.game_over());
     $id("playerBlack").classList.toggle("active", turn === "b" && !chess.game_over());
 
-    if(chess.game_over()) setStatus("Game over");
-    else if(thinking) setStatus("Computer is thinking…", "thinking");
-    else if(chess.in_check() && turn === "w") setStatus("Check — your move", "check");
-    else setStatus(turn === "w" ? "Your move" : "Waiting for the computer");
-
-    // Selected move
-    const playable = canPlay();
-    if(playable && curMove >= allMoves.length) curMove = 0;
-    const mv = playable ? allMoves[curMove] : null;
-    $id("selectedSan").textContent = mv ? mv.san : "—";
-    $id("selectedDetail").textContent = mv
-        ? `${PIECE_NAMES[mv.piece]} ${mv.from}→${mv.to}${mv.promotion ? " = " + PIECE_NAMES[mv.promotion] : ""} · ${curMove + 1}/${allMoves.length}`
-        : "";
-    ["prevMove", "playMove", "nextMove"].forEach(id => $id(id).disabled = !playable);
-
-    // Move list, one row per full move
-    const verbose = chess.history({ verbose: true });
-    const list = $id("history");
-    list.textContent = "";
-    for(let i = 0; i < verbose.length; i += 2){
-        const li = document.createElement("li");
-        [String(i / 2 + 1) + ".", verbose[i].san, verbose[i + 1] ? verbose[i + 1].san : ""].forEach((text, col) => {
-            const span = document.createElement("span");
-            span.textContent = text;
-            if(col === 0) span.className = "num";
-            else if(i + col - 1 === verbose.length - 1) span.className = "last";
-            li.appendChild(span);
-        });
-        list.appendChild(li);
+    if(replay){
+        refreshReplay();
     }
-    $id("historyEmpty").hidden = verbose.length > 0;
-    list.scrollTop = list.scrollHeight;
+    else{
+        if(chess.game_over()) setStatus("Game over");
+        else if(thinking) setStatus("Computer is thinking…", "thinking");
+        else if(chess.in_check() && turn === "w") setStatus("Check — your move", "check");
+        else setStatus(turn === "w" ? "Your move" : "Waiting for the computer");
+
+        // Selected move
+        const playable = canPlay();
+        if(playable && curMove >= allMoves.length) curMove = 0;
+        const mv = playable ? allMoves[curMove] : null;
+        $id("selectedSan").textContent = mv ? mv.san : "—";
+        $id("selectedDetail").textContent = mv
+            ? `${PIECE_NAMES[mv.piece]} ${mv.from}→${mv.to}${mv.promotion ? " = " + PIECE_NAMES[mv.promotion] : ""} · ${curMove + 1}/${allMoves.length}`
+            : "";
+        ["prevMove", "playMove", "nextMove"].forEach(id => $id(id).disabled = !playable);
+    }
+
+    // a live game lists the moves played; a replay lists the whole game with the current move marked
+    if(replay) renderMoveList(replay.sans, replay.ply, true);
+    else renderMoveList(chess.history(), chess.history().length, false);
+
+    const verbose = chess.history({ verbose: true });
 
     // Captured pieces, grouped by who took them
     const taken = { w: [], b: [] };
@@ -603,8 +663,45 @@ function refreshHud(){
     });
 }
 
+/** One row per full move. played moves are shown normally, later ones dimmed; replay moves can be clicked. */
+function renderMoveList(plies, played, clickable){
+    const list = $id("history");
+    list.textContent = "";
+    let current = null;
+    for(let i = 0; i < plies.length; i += 2){
+        const li = document.createElement("li");
+        const num = document.createElement("span");
+        num.className = "num";
+        num.textContent = (i / 2 + 1) + ".";
+        li.appendChild(num);
+        [i, i + 1].forEach(index => {
+            const cell = document.createElement(clickable && index < plies.length ? "button" : "span");
+            cell.textContent = plies[index] || "";
+            if(clickable && index < plies.length){
+                cell.type = "button";
+                cell.classList.add("ply");
+                cell.setAttribute("aria-label", "Go to move " + (Math.floor(index / 2) + 1) + (index % 2 ? " black " : " white ") + plies[index]);
+                cell.addEventListener("click", () => { replayPause(); replayGoTo(index + 1); });
+            }
+            if(index === played - 1){ cell.classList.add("last"); current = li; }
+            else if(index >= played) cell.classList.add("future");
+            li.appendChild(cell);
+        });
+        list.appendChild(li);
+    }
+    $id("historyEmpty").hidden = plies.length > 0;
+    if(clickable){
+        if(current) current.scrollIntoView({ block: "nearest" });
+        else list.scrollTop = 0;
+    }
+    else{
+        list.scrollTop = list.scrollHeight;
+    }
+}
+
 function showGameOver(){
-    if(gameOverShown) return;
+    // a replay reaching the final position shows the result in the panel instead
+    if(gameOverShown || replay) return;
     gameOverShown = true;
     let title, detail;
     if(chess.in_checkmate()){
@@ -635,6 +732,166 @@ function resizeCanvas(){
     if(gl){
         gl.viewportWidth = w;
         gl.viewportHeight = h;
+    }
+}
+
+/* ---------- Replay ---------- */
+
+// set when the page was opened as /index?replay=<gameId>: the saved game is replayed instead of playing
+var replay = null;            // { game, sans, ply, timer }
+var startSnapshot = null;     // every scene object's starting square, position and visibility
+const REPLAY_STEP_MS = 1500;  // autoplay pace: one move animation plus a short pause
+
+function replayResultOf(game){
+    if(game.status === "CHECKMATE") return game.winner === game.color ? ["win", "You won by checkmate"] : ["loss", "You lost by checkmate"];
+    if(game.status === "STALEMATE") return ["draw", "Draw by stalemate"];
+    if(game.status === "DRAW") return ["draw", "Draw"];
+    return ["open", "Unfinished game"];
+}
+
+/** Resolves once the models are loaded and every piece knows its starting square. */
+function boardReady(){
+    return new Promise(resolve => {
+        (function check(){
+            if(Pos && Scene.boxs.length === 64 && Scene.objects.filter(o => o.cord).length === 32) resolve();
+            else setTimeout(check, 50);
+        })();
+    });
+}
+
+function takeSnapshot(){
+    return Scene.objects.map(o => ({ obj: o, cord: o.cord, location: o.location.slice(), isVisible: o.isVisible }));
+}
+
+/** Back to the starting position: promoted pieces removed, everything else where it began. */
+function resetBoard(){
+    boardGeneration++;
+    Scene.objects = Scene.objects.filter(o => !o.promoted);
+    startSnapshot.forEach(s => {
+        s.obj.cord = s.cord;
+        s.obj.location = s.location.slice();
+        s.obj.isVisible = s.isVisible;
+        s.obj.Selected = false;
+        delete s.obj.animation;
+    });
+    chess.reset();
+    clearMoves();
+}
+
+function replayApply(san, instant){
+    // chess.js resolves the SAN to a full move (squares, captures, castling, promotion)
+    const move = new Chess(chess.fen()).move(san);
+    if(!move) throw new Error("Can't replay move " + san);
+    createAnime(move, move, instant);
+}
+
+/** Shows the position after the first n moves; stepping one move forward animates it. */
+function replayGoTo(n, animate){
+    if(!replay || !startSnapshot) return;
+    n = Math.max(0, Math.min(replay.sans.length, n));
+    if(animate && n === replay.ply + 1){
+        replayApply(replay.sans[replay.ply], false);
+    }
+    else{
+        resetBoard();
+        for(let i = 0; i < n; i++) replayApply(replay.sans[i], true);
+    }
+    replay.ply = n;
+    clearMoves();
+    refreshHud();
+}
+
+function replayStep(delta){
+    replayPause();
+    replayGoTo(replay.ply + delta, delta === 1);
+}
+
+function replayToggle(){
+    if(replay.timer) { replayPause(); return; }
+    if(replay.ply >= replay.sans.length) replayGoTo(0);
+    replayGoTo(replay.ply + 1, true);
+    replay.timer = setInterval(() => {
+        if(replay.ply >= replay.sans.length) replayPause();
+        else replayGoTo(replay.ply + 1, true);
+    }, REPLAY_STEP_MS);
+    refreshHud();
+}
+
+function replayPause(){
+    if(!replay || !replay.timer) return;
+    clearInterval(replay.timer);
+    replay.timer = null;
+    refreshHud();
+}
+
+function refreshReplay(){
+    const total = replay.sans.length, ply = replay.ply;
+    if(!replay.game){
+        return;
+    }
+    setStatus(replay.timer ? "Replaying…" : (ply >= total ? "End of game" : "Paused"), replay.timer ? "thinking" : null);
+    $id("replaySan").textContent = ply === 0 ? "Start" : Math.ceil(ply / 2) + (ply % 2 ? ". " : "… ") + replay.sans[ply - 1];
+    $id("replayCount").textContent = ply + " / " + total;
+    const scrub = $id("replayScrub");
+    scrub.max = total;
+    scrub.value = ply;
+    scrub.style.setProperty("--fill", (total ? ply / total * 100 : 0) + "%");
+    $id("replayStart").disabled = $id("replayBack").disabled = ply === 0;
+    $id("replayForward").disabled = $id("replayEnd").disabled = ply >= total;
+    $id("replayPlay").disabled = total === 0;
+    $id("replayPlay").textContent = replay.timer ? "⏸︎ Pause" : (ply >= total && total > 0 ? "↺ Replay" : "▶︎ Play");
+    $id("replayPlay").setAttribute("aria-label", replay.timer ? "Pause" : "Play");
+}
+
+function enterReplayUi(){
+    document.title = "Replay - 3D Chess";
+    $id("moveSection").hidden = true;
+    $id("replaySection").hidden = false;
+    $id("backToHistory").hidden = false;
+    $id("playHint").hidden = true;
+    $id("replayHint").hidden = false;
+    setStatus("Loading game…");
+    $id("replayScrub").addEventListener("input", e => { replayPause(); replayGoTo(Number(e.target.value)); });
+    // replay keys win over the live-game keys in CameraInteractor (capture phase runs first)
+    window.addEventListener("keydown", e => {
+        const keys = { 65: () => replayStep(-1), 68: () => replayStep(1), 32: replayToggle,
+                       36: () => { replayPause(); replayGoTo(0); }, 35: () => { replayPause(); replayGoTo(replay.sans.length); }, 13: () => {} };
+        // let a focused button or the scrubber handle its own keys
+        const tag = e.target.tagName;
+        const native = (tag === "BUTTON" && [13, 32].includes(e.keyCode)) || (tag === "INPUT" && [13, 32, 35, 36].includes(e.keyCode));
+        if(!replay.game || !keys[e.keyCode] || native) return;
+        e.preventDefault();
+        // immediate: CameraInteractor's handler is on window too, and would highlight live-game moves
+        e.stopImmediatePropagation();
+        keys[e.keyCode]();
+    }, true);
+}
+
+async function startReplay(id){
+    try{
+        const game = await fetch(`/game/${encodeURIComponent(id)}`).then(checkAuth).then(readResult);
+        replay.game = game;
+        replay.sans = game.moves ? game.moves.split(" ") : [];
+
+        const opponent = game.opponent === "COMPUTER" ? "Computer" : "Opponent";
+        const youAreWhite = game.color === "WHITE";
+        $id("playerWhiteName").textContent = youAreWhite ? "You" : opponent;
+        $id("playerBlackName").textContent = youAreWhite ? opponent : "You";
+        $id("capturedByWhiteLabel").textContent = youAreWhite ? "You" : "Rival";
+        $id("capturedByBlackLabel").textContent = youAreWhite ? "Rival" : "You";
+        const [kind, text] = replayResultOf(game);
+        $id("replayResult").textContent = text;
+        $id("replayResult").className = "replay-result " + kind;
+
+        await boardReady();
+        startSnapshot = takeSnapshot();
+        // view the game from the side you played
+        if(!youAreWhite) Scene.camera.changeAzimuth(180);
+        replayGoTo(0);
+    }
+    catch(err){
+        console.log(err);
+        setStatus(err.message && !err.message.startsWith("Not logged") ? err.message : "Couldn't load this game.", "check");
     }
 }
 
@@ -724,7 +981,7 @@ function getOppMove(move){
 }
 
 function move(from, to, promotion){
-    if(thinking) return;
+    if(thinking || replay) return;
     thinking = true;
     refreshHud();
     postMove({from: from , to: to, promotion: promotion || null})
@@ -734,10 +991,20 @@ function pieceAt(square){
     return Scene.objects.filter(obj => obj.cord == square)[0];
 }
 
-function animateTo(obj, square){
+// instant places the piece without animating, for rebuilding a position in a replay
+function animateTo(obj, square, instant){
     obj.cord = square;
-    obj.animation = Animation.createAnimation(obj.location , Pos[obj.name][square]);
+    if(instant){
+        delete obj.animation;
+        obj.location = Pos[obj.name][square].slice();
+    }
+    else{
+        obj.animation = Animation.createAnimation(obj.location , Pos[obj.name][square]);
+    }
 }
+
+// bumped whenever the board is reset, so callbacks from before the reset can tell
+var boardGeneration = 0;
 
 function whenLanded(obj, callback){
     (function check(){
@@ -772,8 +1039,11 @@ function promote(pawn, square, type){
     Scene.objects.push(piece);
     pawn.cord = "";
 
-    // swap models once the pawn reaches the last rank, unless the new piece was taken in the meantime
+    // swap models once the pawn reaches the last rank, unless the new piece was taken in the
+    // meantime or the board was reset (a replay jumping elsewhere) before it landed
+    const generation = boardGeneration;
     whenLanded(pawn, () => {
+        if(generation !== boardGeneration) return;
         pawn.isVisible = false;
         if(piece.cord) piece.isVisible = true;
     });
@@ -781,9 +1051,10 @@ function promote(pawn, square, type){
 
 /*
     localMove is the {from, to} that was sent; move is the server's verbose
-    chess.js result, which is what knows about captures, castling and promotion
+    chess.js result, which is what knows about captures, castling and promotion.
+    instant applies the move without animating.
 */
-function createAnime(localMove,move){
+function createAnime(localMove,move,instant){
     if(move){
         try{
             chess.move({from: move.from, to: move.to, promotion: move.promotion})
@@ -804,11 +1075,11 @@ function createAnime(localMove,move){
                 let rank = move.from[1];
                 let kingSide = move.flags.includes("k");
                 let rook = pieceAt((kingSide ? "h" : "a") + rank);
-                if(rook) animateTo(rook, (kingSide ? "f" : "d") + rank);
+                if(rook) animateTo(rook, (kingSide ? "f" : "d") + rank, instant);
             }
 
             let piece = pieceAt(move.from);
-            animateTo(piece, move.to);
+            animateTo(piece, move.to, instant);
             if(move.promotion){
                 promote(piece, move.to, move.promotion);
             }
@@ -997,7 +1268,15 @@ function initSkybox(attrList , uniformList){
 function main(){
 
 	chess = new Chess();
-    getGameId();
+    // /index?replay=<gameId> replays a saved game instead of starting a new one
+    const replayId = new URLSearchParams(window.location.search).get("replay");
+    if(replayId){
+        replay = { game: null, sans: [], ply: 0, timer: null };
+        enterReplayUi();
+    }
+    else{
+        getGameId();
+    }
     loadUser();
     resizeCanvas();
     utils.initGL(document.getElementById("canvas"))
@@ -1028,6 +1307,7 @@ function main(){
 					])
 	Scene.init();
 	BoardClick.init(document.getElementById("canvas"), onSquareClicked, onSquareHovered);
+	if(replay) startReplay(replayId);
 	Scene.loadna('/chesspos.json' , function(chessPosition){
 		Pos = JSON.parse(chessPosition);
 		console.log(Pos)

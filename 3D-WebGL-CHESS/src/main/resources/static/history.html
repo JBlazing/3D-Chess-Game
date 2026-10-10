@@ -201,6 +201,8 @@ h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: 0.01em; }
 .swatch.black { background: #2a2230; border: 1px solid rgba(255, 255, 255, 0.3); }
 .when { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
 .meta { color: var(--muted); font-size: 13px; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.btn-sm { height: 28px; padding: 0 12px; font-size: 12px; flex: none; }
 
 details { margin-top: 2px; }
 summary {
@@ -433,7 +435,15 @@ function gameCard(game){
     body.appendChild(head);
 
     const fullMoves = Math.ceil(game.moveCount / 2);
-    body.appendChild(el("div", "meta", endingOf(game) + " · " + fullMoves + (fullMoves === 1 ? " move" : " moves")));
+    const metaRow = el("div", "meta-row");
+    metaRow.appendChild(el("div", "meta", endingOf(game) + " · " + fullMoves + (fullMoves === 1 ? " move" : " moves")));
+    if(game.moveCount > 0){
+        const replayLink = el("a", "btn btn-sm", "▶︎ Replay");
+        replayLink.href = "/index?replay=" + encodeURIComponent(game.gameId);
+        replayLink.setAttribute("aria-label", "Replay this game on the 3D board");
+        metaRow.appendChild(replayLink);
+    }
+    body.appendChild(metaRow);
 
     const details = el("details");
     details.appendChild(el("summary", null, "Show moves"));

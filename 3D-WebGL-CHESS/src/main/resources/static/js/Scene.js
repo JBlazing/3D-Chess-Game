@@ -157,9 +157,20 @@ var Scene = {
 					}else if(obj.name == "Bishop002"){
 							obj.name = "Bishop003";
 							obj.cord = "f1"
-						
+
 					}
-					
+
+					// Pos[name][square] is the offset that moves this mesh from its starting square, so the
+					// starting square must be [0,0,0]. Bishop003's table is shifted ~3 units (it has no zero
+					// entry), which drew the f1 bishop off-centre once it moved; re-base any such table.
+					let home = obj.cord && Pos[obj.name] && Pos[obj.name][obj.cord];
+					if(home && (home[0] || home[1] || home[2])){
+						let table = Pos[obj.name];
+						Object.keys(table).forEach(function(sq){
+							table[sq] = [table[sq][0] - home[0], table[sq][1] - home[1], table[sq][2] - home[2]];
+						});
+					}
+
 					
 
 

@@ -93,6 +93,16 @@ public class GameService {
                 .toList();
     }
 
+    /** One of the player's games, e.g. to replay it. */
+    @Transactional(readOnly = true)
+    public GameSummary summaryFor(UUID gameId, Player player) {
+        return gameRecordRepository.findById(gameId.toString())
+                .filter(record -> record.getWhitePlayer().equals(player.id()) || record.getBlackPlayer().equals(player.id()))
+                .map(record -> GameSummary.of(record, player))
+                // someone else's game looks the same as no game
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such game"));
+    }
+
     private Result apply(GameState state, Result result) {
         GameState next = new GameState(state.gameId(), state.white(), state.black(), result.boardState(), result.status());
         GameRecord record = gameRecordRepository.findById(state.gameId().toString()).orElseThrow();

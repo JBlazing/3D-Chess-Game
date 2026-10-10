@@ -51,4 +51,10 @@ public class GameController {
     public List<GameSummary> myGames(Player player) {
         return gameService.gamesFor(player);
     }
+
+    /** One of the signed-in player's games, with its moves, for replaying. */
+    @GetMapping("{gameId}")
+    public GameSummary game(@PathVariable("gameId") UUID gameId, Player player) {
+        return gameService.summaryFor(gameId, player);
+    }
 }
