@@ -630,7 +630,7 @@ kbd {
                 <span class='side-piece random' aria-hidden='true'><span class='pw'>&#9818;&#xFE0E;</span><span class='pb'>&#9818;&#xFE0E;</span></span>Random
             </button>
         </div>
-        <button type='button' class='btn btn-block' onclick='closeSideChooser()'>Cancel</button>
+        <button type='button' class='btn btn-block' id='chooserCancel' onclick='closeSideChooser()'>Cancel</button>
     </div>
 </div>
 
@@ -796,18 +796,33 @@ function validSide(choice){
     return ["white", "black", "random"].includes(choice) ? choice : "white";
 }
 
-function openSideChooser(){
+// set while no game has been started (on arrival, or after cancelling a search with nothing
+// behind it): the New game dialog then stays open until a game is picked
+var awaitingChoice = false;
+
+/** required: there is no game to go back to, so the dialog can't be dismissed. */
+function openSideChooser(required){
+    if(required) awaitingChoice = true;
     document.querySelectorAll(".side-option").forEach(b => b.classList.toggle("current", b.dataset.side === sideChoice));
     $id("chooserWarning").hidden = !onlineInProgress();
-    $id("onlineSub").textContent = myRating != null
-        ? "Rated · your rating " + myRating + " · matched by rating"
-        : "Unrated · sign in to play rated games";
+    $id("chooserCancel").hidden = awaitingChoice;
+    updateOnlineSub();
     $id("gameOver").hidden = true;
     $id("sideChooser").hidden = false;
+    refreshHud();
     (document.querySelector(".side-option.current") || document.querySelector(".side-option")).focus();
 }
 
-function closeSideChooser(){
+function updateOnlineSub(){
+    $id("onlineSub").textContent = myRating != null
+        ? "Rated · your rating " + myRating + " · matched by rating"
+        : "Unrated · sign in to play rated games";
+}
+
+/** Closes the dialog, unless a game still has to be picked; force is for starting one. */
+function closeSideChooser(force){
+    if(awaitingChoice && !force) return;
+    if(force) awaitingChoice = false;
     $id("sideChooser").hidden = true;
 }
 
@@ -886,6 +901,7 @@ function refreshHud(){
     }
     else{
         if(chess.game_over() || gameOverShown) setStatus("Game over");
+        else if(!gameId && awaitingChoice) setStatus("Choose a game to start");
         else if(!gameId) setStatus("Starting game…");
         else if(thinking) setStatus(online ? "Sending your move…" : "Computer is thinking…", "thinking");
         else if(chess.in_check() && turn === playerColor) setStatus("Check — your move", "check");
@@ -1191,7 +1207,7 @@ function sideLabel(side, isYou){
 
 /** Joins matchmaking and waits for an opponent (the queue is polled, which also keeps our place). */
 async function findOpponent(){
-    closeSideChooser();
+    closeSideChooser(true);
     $id("gameOver").hidden = true;
     await resignOnlineGame();
     leaveOnline();
@@ -1263,6 +1279,8 @@ async function cancelSearch(){
         // a match may have been made just before we left: play it rather than strand the opponent
         const status = await fetch("/queue/status").then(readResult);
         if(status.state === "MATCHED") startOnline(status.gameId);
+        // nothing to go back to: choose again
+        else if(!gameId && !online) openSideChooser(true);
     }
     catch(err){ console.log(err); }
 }
@@ -1292,7 +1310,7 @@ async function resumeOnline(state){
     selectedFrom = null;
     curMove = 0;
     $id("gameOver").hidden = true;
-    closeSideChooser();
+    closeSideChooser(true);
     applySideLabels(playerColor, sideLabel(opponent, false), sideLabel(you, true));
     refreshHud();
 
@@ -1472,7 +1490,11 @@ async function claimWin(){
 }
 
 /** On load: carry on with an online game in progress, otherwise start a game against the computer. */
-async function resumeOrStart(side){
+/**
+ * On arrival: carry on with an online game in progress; start the computer game a link asked for
+ * (?side=); otherwise let the player choose what to play.
+ */
+async function resumeOrStart(side, requested){
     try{
         const re = await fetch("/game/active").then(checkAuth);
         if(re.status === 200){
@@ -1481,7 +1503,13 @@ async function resumeOrStart(side){
         }
     }
     catch(err){ console.log(err); }
-    startGame(side);
+    if(requested){
+        startGame(side);
+    }
+    else{
+        sideChoice = side;   // pre-selects the side picked last time
+        openSideChooser(true);
+    }
 }
 
 /* ---------- Server calls ---------- */
@@ -1503,7 +1531,7 @@ async function startGame(choice){
     selectedFrom = null;
     curMove = 0;
     $id("gameOver").hidden = true;
-    closeSideChooser();
+    closeSideChooser(true);
     applySideLabels(playerColor, "Computer");
     refreshHud();
 
@@ -1909,12 +1937,15 @@ function main(){
         enterReplayUi();
     }
     else{
-        // ?side= from a link (e.g. "Play as Black" after a replay), else the side you picked last time
-        // an online game in progress comes first (leaving it would forfeit); otherwise ?side= from a
-        // link (e.g. "Play as Black" after a replay), else the side you picked last time
-        resumeOrStart(validSide(new URLSearchParams(window.location.search).get("side") || storedSide()));
+        // an online game in progress comes first (leaving it would forfeit); a link may ask for a
+        // computer game (?side=, e.g. "Play as Black" after a replay); otherwise the player chooses
+        const requestedSide = new URLSearchParams(window.location.search).get("side");
+        resumeOrStart(validSide(requestedSide || storedSide()), !!requestedSide);
     }
-    loadUser().then(user => { myRating = user && user.rating != null ? user.rating : null; });
+    loadUser().then(user => {
+        myRating = user && user.rating != null ? user.rating : null;
+        updateOnlineSub();   // the dialog may already be showing
+    });
     resizeCanvas();
     utils.initGL(document.getElementById("canvas"))
     window.addEventListener("resize", resizeCanvas);

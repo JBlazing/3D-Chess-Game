@@ -28,6 +28,9 @@ var BoardClick = {
 		canvas.addEventListener("pointerdown", function(ev){
 			if(ev.button === 0) self.down = { x : ev.clientX, y : ev.clientY };
 		});
+		// a press interrupted by losing focus is not a click
+		window.addEventListener("blur", function(){ self.down = null; });
+		document.addEventListener("visibilitychange", function(){ if(document.hidden) self.down = null; });
 		canvas.addEventListener("pointerup", function(ev){
 			var down = self.down;
 			self.down = null;

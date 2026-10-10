@@ -64,6 +64,12 @@ CameraInteractor.prototype.onMouseUp = function(ev){
     }
 }
 
+CameraInteractor.prototype.endDrag = function(){
+	this.dragging = false;
+	this.picking = false;
+	if (this.picker) this.picker.stop();
+}
+
 CameraInteractor.prototype.onMouseDown = function(ev){
     this.dragging = true;
     this.x = ev.clientX;
@@ -94,7 +100,14 @@ CameraInteractor.prototype.onMouseMove = function(ev){
     this.y = ev.clientY;
 	
 	if (!this.dragging) return;
-		
+
+	// the button was released somewhere we didn't hear about (outside the canvas, or while
+	// another window had focus): the drag is over, don't keep turning the camera
+	if (ev.buttons === 0) {
+		this.endDrag();
+		return;
+	}
+
 
 	this.ctrl = ev.ctrlKey;
 	this.alt = ev.altKey;
@@ -188,6 +201,13 @@ CameraInteractor.prototype.update = function(){
 	window.onkeyup = function(ev){
 		self.onKeyUp(ev);
 	}
+
+	// losing focus mid-drag (alt-tab, another app, a hidden tab) means the mouse-up never
+	// reaches the canvas; drop the drag so the camera doesn't follow the mouse afterwards
+	window.addEventListener("blur", function(){ self.endDrag(); });
+	document.addEventListener("visibilitychange", function(){
+		if (document.hidden) self.endDrag();
+	});
 }
 
 CameraInteractor.prototype.dolly = function(value){
