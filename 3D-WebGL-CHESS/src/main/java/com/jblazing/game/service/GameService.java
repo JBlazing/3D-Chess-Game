@@ -231,7 +231,7 @@ public class GameService {
     private GameState gameFor(UUID gameId, Player player) {
         GameState state = gameStateCache.getGameState(gameId);
         if (state == null) {
-            state = gameRecordRepository.findById(gameId.toString()).map(GameService::toState).orElse(null);
+            state = gameRecordRepository.findById(gameId.toString()).map(this::toState).orElse(null);
             if (state != null) {
                 gameStateCache.storeGameState(gameId, state);
             }
@@ -243,14 +243,14 @@ public class GameService {
         return state;
     }
 
-    private static GameState toState(GameRecord record) {
+    private GameState toState(GameRecord record) {
         return new GameState(UUID.fromString(record.getId()),
                 Player.of(record.getWhitePlayer(), record.getWhiteAccount() == null ? null : record.getWhiteAccount().getId()),
                 Player.of(record.getBlackPlayer(), record.getBlackAccount() == null ? null : record.getBlackAccount().getId()),
                 record.getFen(), record.getStatus());
     }
 
-    private static void requireInProgress(GameState state) {
+    private void requireInProgress(GameState state) {
         if (state.isOver()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "The game is over");
         }
