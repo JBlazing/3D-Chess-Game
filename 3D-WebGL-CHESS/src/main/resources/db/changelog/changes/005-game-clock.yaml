@@ -1,11 +1,9 @@
 # Blitz clocks for games. All four columns are null for untimed games (games against the computer,
-# and games played before clocks existed). Two variants of the same change, as in 003: Liquibase's
-# addColumn everywhere except SQLite, plain ALTER TABLE on SQLite.
+# and games played before clocks existed).
 databaseChangeLog:
   - changeSet:
       id: 5-game-clock
       author: jblazing
-      dbms: "!sqlite"
       changes:
         - addColumn:
             tableName: game
@@ -24,18 +22,3 @@ databaseChangeLog:
               - column:
                   name: black_clock_ms
                   type: BIGINT
-
-  # the same columns as 5-game-clock, for SQLite
-  - changeSet:
-      id: 5-game-clock-sqlite
-      author: jblazing
-      dbms: sqlite
-      changes:
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN clock_initial_ms BIGINT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN clock_increment_ms BIGINT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN white_clock_ms BIGINT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN black_clock_ms BIGINT

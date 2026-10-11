@@ -1,5 +1,5 @@
 # HTTP sessions, stored by Spring Session JDBC so that a sign-in survives server restarts.
-# Same tables as Spring Session's own schema-sqlite.sql / schema-postgresql.sql; names are
+# Same tables as Spring Session's own schema-postgresql.sql; names are
 # lower case because PostgreSQL folds the unquoted names Spring Session uses to lower case.
 databaseChangeLog:
   - changeSet:
@@ -86,8 +86,8 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: spring_session_attributes_pk
                     nullable: false
-              # serialized attribute value: BYTEA on PostgreSQL (Liquibase would turn BLOB into
-              # OID there, a large-object reference Spring Session can't write), BLOB elsewhere
+              # serialized attribute value: BYTEA (Liquibase would turn BLOB into OID, a
+              # large-object reference Spring Session can't write)
               - column:
                   name: attribute_bytes
                   type: ${bytes.type}

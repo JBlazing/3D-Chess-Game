@@ -50,7 +50,6 @@ databaseChangeLog:
                   type: ${timestamp.type}
                   constraints:
                     nullable: false
-        # a unique index rather than addUniqueConstraint: SQLite can't ALTER TABLE ADD CONSTRAINT
         - createIndex:
             tableName: user_account
             indexName: uk_user_account_provider_subject

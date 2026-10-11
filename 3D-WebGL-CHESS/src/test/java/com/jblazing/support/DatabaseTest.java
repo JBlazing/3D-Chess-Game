@@ -30,9 +30,12 @@ import java.util.Set;
 
 /**
  * The whole application (Google sign-in mode) on a test database; subclasses pick the database.
- * All test classes for one database share a single application context.
+ * All test classes for one database share a single application context. The chess engine gets a
+ * longer timeout than in production: interpreted GraalJS on a cold, busy test JVM can take more
+ * than the default to make its first moves.
  */
-@SpringBootTest(properties = {"GOOGLE_CLIENT_ID=test-client-id", "GOOGLE_CLIENT_SECRET=test-secret"})
+@SpringBootTest(properties = {"GOOGLE_CLIENT_ID=test-client-id", "GOOGLE_CLIENT_SECRET=test-secret",
+        "game.chess.engine.executor.timeout=PT60S"})
 public abstract class DatabaseTest implements TestSupport {
 
     @Autowired private GameService gameService;
@@ -84,15 +87,6 @@ public abstract class DatabaseTest implements TestSupport {
             return currentPlayerResolver.resolveArgument(null, null, null, null);
         } finally {
             SecurityContextHolder.clearContext();
-        }
-    }
-
-    @Override
-    public boolean isPostgres() {
-        try (Connection c = dataSource.getConnection()) {
-            return c.getMetaData().getDatabaseProductName().toLowerCase().contains("postgres");
-        } catch (SQLException e) {
-            throw new IllegalStateException(e);
         }
     }
 

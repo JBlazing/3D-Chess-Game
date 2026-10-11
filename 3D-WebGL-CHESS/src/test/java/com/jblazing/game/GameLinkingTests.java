@@ -131,9 +131,8 @@ interface GameLinkingTests extends TestSupport {
     @Test
     default void gamesCanOnlyReferenceExistingAccounts() {
         long now = System.currentTimeMillis();
-        String timestamp = isPostgres() ? "now()" : String.valueOf(now);
         assertThatThrownBy(() -> sql("insert into game (id, white_player, black_player, white_account_id, status, fen, moves, created_at, updated_at) "
-                + "values ('fk-" + now + "', 'user:999999', 'COMPUTER', 999999, 'IN_PROGRESS', 'x', '', " + timestamp + ", " + timestamp + ")"))
+                + "values ('fk-" + now + "', 'user:999999', 'COMPUTER', 999999, 'IN_PROGRESS', 'x', '', now(), now())"))
                 .hasRootCauseInstanceOf(SQLException.class)
                 .rootCause().message().containsIgnoringCase("foreign key");
     }

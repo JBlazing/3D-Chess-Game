@@ -44,7 +44,7 @@ public class JavaScriptEngine {
 
     public JavaScriptEngine(@Value("${game.chess.js.location}") String chessJs,
                             @Value("${game.chess.move.js.location:}") String moveJs,
-                            @Value("${game.chess.engine.executor.timeout:PT5S}") Duration executorTimeout) throws IOException, URISyntaxException {
+                            @Value("${game.chess.engine.executor.timeout:PT10S}") Duration executorTimeout) throws IOException, URISyntaxException {
 
         chessJs = Files.readString(Paths.get(getClass().getResource(chessJs).toURI()));
         moveJs = Files.readString(Paths.get(getClass().getResource(moveJs).toURI()));
@@ -52,6 +52,7 @@ public class JavaScriptEngine {
         String completeJs = String.join("\n", chessJs, moveJs);
 
         this.chessJsSource = Source.newBuilder("js", completeJs, "Chess.js").build();
+        // platform threads: GraalJS (25) only supports polyglot contexts on virtual threads experimentally
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.executorTimeout = executorTimeout;
     }

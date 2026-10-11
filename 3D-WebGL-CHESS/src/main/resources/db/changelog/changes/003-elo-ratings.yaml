@@ -1,4 +1,4 @@
-# Elo ratings for accounts, and rating data for games. Two variants of the same change: Liquibase's addColumn everywhere except SQLite, plain ALTER TABLE on SQLite.
+# Elo ratings for accounts, and rating data for games.
 #
 # logicalFilePath: these changesets were first applied from db.changelog-master.yaml, and
 # Liquibase identifies a changeset by id, author and file path. Keeping the original path means
@@ -8,9 +8,6 @@ databaseChangeLog:
       id: 3-elo-ratings
       author: jblazing
       logicalFilePath: db/changelog/db.changelog-master.yaml
-      # Liquibase emulates addColumn on SQLite by rebuilding the table, which fails on this schema;
-      # SQLite's own ADD COLUMN handles it, so SQLite gets the plain-SQL changeset below instead
-      dbms: "!sqlite"
       changes:
         # every account starts at 1200; rated_games drives the K-factor (new players move faster)
         - addColumn:
@@ -51,25 +48,3 @@ databaseChangeLog:
               - column:
                   name: black_rating_change
                   type: INT
-
-  # the same columns as 3-elo-ratings, for SQLite
-  - changeSet:
-      id: 3-elo-ratings-sqlite
-      author: jblazing
-      logicalFilePath: db/changelog/db.changelog-master.yaml
-      dbms: sqlite
-      changes:
-        - sql:
-            sql: ALTER TABLE user_account ADD COLUMN rating INT NOT NULL DEFAULT 1200
-        - sql:
-            sql: ALTER TABLE user_account ADD COLUMN rated_games INT NOT NULL DEFAULT 0
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN rated BOOLEAN NOT NULL DEFAULT 0
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN white_rating INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN black_rating INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN white_rating_change INT
-        - sql:
-            sql: ALTER TABLE game ADD COLUMN black_rating_change INT

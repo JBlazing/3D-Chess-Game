@@ -29,8 +29,7 @@ databaseChangeLog:
                   type: VARCHAR(64)
                   constraints:
                     nullable: false
-              # the signed-in accounts playing each side; null for the computer and guests.
-              # Foreign keys are declared here because SQLite can't add them with ALTER TABLE.
+              # the signed-in accounts playing each side; null for the computer and guests
               - column:
                   name: white_account_id
                   type: ${id.type}

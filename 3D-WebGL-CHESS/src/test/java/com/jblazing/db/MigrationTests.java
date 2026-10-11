@@ -13,7 +13,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Liquibase builds the same schema on every database, from the changesets in db/changelog. */
+/** Liquibase builds the schema from the changesets in db/changelog. */
 interface MigrationTests extends TestSupport {
 
     private Map<String, String> applied() throws SQLException {
@@ -35,10 +35,8 @@ interface MigrationTests extends TestSupport {
 
     @Test
     default void everyChangesetIsApplied() throws SQLException {
-        // the ratings and clock changes have one variant for SQLite (plain ALTER TABLE) and one for everything else
-        String ratings = isPostgres() ? "3-elo-ratings" : "3-elo-ratings-sqlite";
-        String clock = isPostgres() ? "5-game-clock" : "5-game-clock-sqlite";
-        assertThat(applied().keySet()).containsExactly("1-create-user-account", "2-create-game", ratings, "4-spring-session", clock);
+        assertThat(applied().keySet()).containsExactly("1-create-user-account", "2-create-game", "3-elo-ratings",
+                "4-spring-session", "5-game-clock");
     }
 
     @Test
@@ -65,18 +63,10 @@ interface MigrationTests extends TestSupport {
     }
 
     @Test
-    default void typesThatDifferByDatabase() throws SQLException {
-        Map<String, String> account = columns("user_account");
-        Map<String, String> session = columns("spring_session_attributes");
-        if (isPostgres()) {
-            assertThat(account).containsEntry("id", "int8").containsEntry("created_at", "timestamptz");
-            // BYTEA, not the OID large-object reference Liquibase would make of BLOB
-            assertThat(session).containsEntry("attribute_bytes", "bytea");
-        } else {
-            // SQLite: AUTOINCREMENT needs exactly INTEGER; timestamps are epoch millis
-            assertThat(account).containsEntry("id", "integer").containsEntry("created_at", "integer");
-            assertThat(session).containsEntry("attribute_bytes", "blob");
-        }
+    default void columnTypes() throws SQLException {
+        assertThat(columns("user_account")).containsEntry("id", "int8").containsEntry("created_at", "timestamptz");
+        // BYTEA, not the OID large-object reference Liquibase would make of BLOB
+        assertThat(columns("spring_session_attributes")).containsEntry("attribute_bytes", "bytea");
     }
 
     @Test

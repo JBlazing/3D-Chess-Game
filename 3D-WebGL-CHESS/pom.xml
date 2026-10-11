@@ -8,11 +8,11 @@
     <version>0.0.1-SNAPSHOT</version>
 
     <properties>
-        <java.version>23</java.version>
-        <spring.boot.version>3.4.3</spring.boot.version>
-        <graaljs.version>24.1.0</graaljs.version>
+        <java.version>25</java.version>
+        <spring.boot.version>3.5.16</spring.boot.version>
+        <graaljs.version>25.4.4.1.1</graaljs.version>
         <caffiene.version>3.1.8</caffiene.version>
-        <loombok.version>1.18.36</loombok.version>
+        <loombok.version>1.18.48</loombok.version>
         <embedded.postgres.version>2.1.0</embedded.postgres.version>
         <embedded.postgres.binaries.version>16.4.0</embedded.postgres.binaries.version>
     </properties>
@@ -33,7 +33,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.3</version>
+        <version>3.5.16</version>
     </parent>
 
     <!-- Additional lines to be added here... -->
@@ -51,7 +51,7 @@
             <version>${spring.boot.version}</version>
         </dependency>
 
-        <!-- Persistence: JPA with Liquibase migrations; the database is chosen by spring.datasource.url -->
+        <!-- Persistence: JPA on PostgreSQL, with Liquibase migrations -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -67,18 +67,6 @@
         <dependency>
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-jdbc</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- SQLite dialect for Hibernate -->
-        <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-community-dialects</artifactId>
         </dependency>
 
         <dependency>
@@ -121,8 +109,8 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- A real PostgreSQL server started by the tests, so database code is tested on PostgreSQL
-             as well as SQLite. Linux and macOS binaries come with it; Windows needs its own. -->
+        <!-- A real PostgreSQL server started by the tests. Linux and macOS binaries come with it;
+             Windows needs its own. -->
         <dependency>
             <groupId>io.zonky.test</groupId>
             <artifactId>embedded-postgres</artifactId>

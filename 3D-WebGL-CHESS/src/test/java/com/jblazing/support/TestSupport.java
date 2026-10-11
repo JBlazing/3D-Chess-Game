@@ -15,8 +15,7 @@ import javax.sql.DataSource;
 import java.util.UUID;
 
 /**
- * What the database test suites (JUnit test interfaces) can use. Implemented by {@link DatabaseTest},
- * so each suite runs once on SQLite and once on PostgreSQL.
+ * What the database test suites (JUnit test interfaces) can use. Implemented by {@link DatabaseTest}.
  */
 public interface TestSupport {
 
@@ -57,14 +56,11 @@ public interface TestSupport {
         return accounts().findById(player.accountId()).orElseThrow();
     }
 
-    boolean isPostgres();
-
     void sql(String statement);
 
     /** An SQL expression for "this many minutes ago" in an updated_at column. */
     default String minutesAgo(int minutes) {
-        return isPostgres() ? "now() - interval '" + minutes + " minutes'"
-                : String.valueOf(System.currentTimeMillis() - minutes * 60_000L);
+        return "now() - interval '" + minutes + " minutes'";
     }
 
     /** The HTTP status a call fails with, or 0 if it succeeds. */
