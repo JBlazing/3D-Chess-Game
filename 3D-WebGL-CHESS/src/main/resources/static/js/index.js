@@ -269,10 +269,10 @@ function refreshHud(){
         if(chess.game_over() || gameOverShown) setStatus("Game over");
         else if(!gameId && awaitingChoice) setStatus("Choose a game to start");
         else if(!gameId) setStatus("Starting game…");
-        else if(thinking) setStatus(online ? "Sending your move…" : "Computer is thinking…", "thinking");
+        else if(thinking) setStatus("Sending your move…", "thinking");
         else if(chess.in_check() && turn === playerColor) setStatus("Check — your move", "check");
         else if(turn === playerColor) setStatus("Your move");
-        else setStatus(online ? "Waiting for " + online.opponent.name + "…" : "Waiting for the computer", online ? "thinking" : null);
+        else setStatus(online ? "Waiting for " + online.opponent.name + "…" : "Computer is thinking…", "thinking");
 
         // Selected move
         const playable = canPlay();
@@ -391,8 +391,10 @@ var startSnapshot = null;     // every scene object's starting square, position 
 const REPLAY_STEP_MS = 1500;  // autoplay pace: one move animation plus a short pause
 
 function replayResultOf(game){
-    const how = { CHECKMATE: "by checkmate", RESIGNED: "by resignation", ABANDONED: "by abandonment" }[game.status];
-    if(how) return game.winner === game.color ? ["win", "You won " + how] : ["loss", "You lost " + how];
+    const how = { CHECKMATE: "by checkmate", RESIGNED: "by resignation", ABANDONED: "by abandonment", TIMEOUT: "on time" }[game.status];
+    if(game.status === "ABORTED") return ["open", "Stopped when a new game started"];
+    if(how && game.winner) return game.winner === game.color ? ["win", "You won " + how] : ["loss", "You lost " + how];
+    if(game.status === "TIMEOUT") return ["draw", "Draw on time"];
     if(game.status === "STALEMATE") return ["draw", "Draw by stalemate"];
     if(game.status === "DRAW") return ["draw", "Draw"];
     return ["open", "Unfinished game"];
@@ -550,12 +552,12 @@ async function startReplay(id){
 
 /* ---------- Online play ---------- */
 
-var online = null;        // the online game being played: { gameId, rated, you, opponent, timer, over }
+var online = null;        // the online game being played: { gameId, rated, you, opponent, over }
 var search = null;        // matchmaking in progress: { startedAt, pollTimer, clockTimer }
 var myRating = null;      // the signed-in player's rating; null for guests
-var pollBusy = false;
 var lastResultOnline = false;
 const ONLINE_POLL_MS = 1000;
+const RECONNECT_MS = 3000;
 
 function onlineInProgress(){
     return !!online && !online.over;
@@ -668,7 +670,7 @@ async function resumeOnline(state){
     const youAreWhite = state.color === "WHITE";
     const you = youAreWhite ? state.white : state.black;
     const opponent = youAreWhite ? state.black : state.white;
-    online = { gameId: state.gameId, rated: state.rated, you: you, opponent: opponent, timer: null, over: false };
+    online = { gameId: state.gameId, rated: state.rated, you: you, opponent: opponent, over: false };
     playerColor = youAreWhite ? "w" : "b";
     gameId = null;                 // no moves until the position is on the board
     thinking = false;
@@ -678,6 +680,7 @@ async function resumeOnline(state){
     $id("gameOver").hidden = true;
     closeSideChooser(true);
     applySideLabels(playerColor, sideLabel(opponent, false), sideLabel(you, true));
+    setClock(state.clock);
     refreshHud();
 
     await boardReady();
@@ -693,40 +696,162 @@ async function resumeOnline(state){
         finishOnline(state);
         return;
     }
-    online.timer = setInterval(pollOnline, ONLINE_POLL_MS);
+    followGame(state.gameId);
 }
 
-/** Picks up the opponent's moves and the game's end. Skipped while our own move is being sent. */
-async function pollOnline(){
-    if(!online || online.over || pollBusy || thinking) return;
-    pollBusy = true;
-    const forGame = online.gameId;
+/* ---------- Live updates ---------- */
+
+var live = null;   // the event stream of the game being played, online or against the computer: { gameId, events, latest, over }
+
+/**
+ * Follows a game through the server's event stream: its whole state whenever it changes (moves,
+ * the end of the game), and the clock every second. Nothing is polled.
+ */
+function followGame(id){
+    stopFollowing();
+    live = { gameId: id, events: null, latest: null, over: false };
+    openStream(live);
+}
+
+function openStream(following){
+    const events = new EventSource(`/game/${encodeURIComponent(following.gameId)}/events`);
+    following.events = events;
+    const current = () => live === following && following.events === events && !following.over;
+    events.addEventListener("state", e => { if(current()) onGameState(JSON.parse(e.data)); });
+    events.addEventListener("clock", e => { if(current()) setClock(JSON.parse(e.data)); });
+    events.onerror = () => {
+        // a dropped connection is reopened by the browser; one the server refused (e.g. signed out) is not
+        if(events.readyState !== EventSource.CLOSED || !current()) return;
+        setTimeout(() => reconnect(following, events), RECONNECT_MS);
+    };
+}
+
+/** Opens the stream again after the server refused it, checking first that we're still signed in and in the game. */
+async function reconnect(following, events){
+    const current = () => live === following && following.events === events && !following.over;
+    if(!current()) return;
     try{
-        const state = await fetch(`/game/${forGame}/state`).then(checkAuth).then(readResult);
-        if(!online || online.gameId !== forGame || thinking) return;
-        const have = chess.history().length;
-        if(state.moves.length > have){
-            // catch up instantly on anything missed, and animate the latest move
-            for(let i = have; i < state.moves.length; i++) replayApply(state.moves[i], i < state.moves.length - 1);
-            allMoves = playerMoves();
-            curMove = 0;
-            selectedFrom = null;
-        }
+        onGameState(await fetch(`/game/${following.gameId}/state`).then(checkAuth).then(readResult));
+        if(current()) openStream(following);
+    }
+    catch(err){
+        console.log(err);
+        setTimeout(() => reconnect(following, events), RECONNECT_MS);
+    }
+}
+
+/** Stops following the game; the clocks keep showing their last reading. */
+function endFollowing(){
+    if(!live) return;
+    live.over = true;
+    if(live.events) live.events.close();
+}
+
+/** Stops following the game and hides the clocks, e.g. when another game starts. */
+function stopFollowing(){
+    endFollowing();
+    live = null;
+    setClock(null);
+}
+
+/** Shows anything the server pushed while our own move (or the computer's reply) was on its way. */
+function catchUp(){
+    if(live && live.latest) onGameState(live.latest);
+}
+
+/**
+ * Shows the game as the server sent it: the clock, moves we haven't seen, the end of the game.
+ * While our move is on its way the moves wait; postMove applies it, then catches up.
+ */
+function onGameState(state){
+    if(!live || live.over || state.gameId !== live.gameId) return;
+    live.latest = state;
+    setClock(state.clock);
+    if(thinking) return;
+    const have = chess.history().length;
+    if(state.moves.length > have){
+        // catch up instantly on anything missed, and animate the latest move
+        for(let i = have; i < state.moves.length; i++) replayApply(state.moves[i], i < state.moves.length - 1);
+        allMoves = playerMoves();
+        curMove = 0;
+        selectedFrom = null;
+    }
+    if(online){
         $id("claimBox").hidden = !state.canClaimWin;
         if(state.canClaimWin){
             $id("claimText").textContent = online.opponent.name + " hasn't moved for " + Math.floor(state.opponentIdleSeconds / 60) + " minutes.";
         }
-        if(state.status !== "IN_PROGRESS") finishOnline(state);
-        else refreshHud();
     }
-    catch(err){ console.log(err); }
-    finally{ pollBusy = false; }
+    if(state.status !== "IN_PROGRESS"){
+        endFollowing();
+        if(online) finishOnline(state);
+        else finishComputerGame(state);
+    }
+    else refreshHud();
+}
+
+/**
+ * A game against the computer ended on the server. Checkmate, stalemate and draws are shown when
+ * the final move lands, and resigning shows its own card; only running out of time is news here.
+ */
+function finishComputerGame(state){
+    if(state.status !== "TIMEOUT" || gameOverShown) return;
+    gameOverShown = true;
+    const [title, detail] = !state.winner ? ["Draw on time", "A clock ran out, but the other side couldn't have checkmated."]
+        : state.winner === state.color ? ["You win on time", "The computer ran out of time."]
+        : ["Out of time", "Your clock ran out. The computer wins."];
+    showResultCard(title, detail, null, false);
+    refreshHud();
+}
+
+
+/* ---------- Blitz clock ---------- */
+
+// The server keeps the clock and pushes it every second and with every change; in between, the
+// running side is counted down here for display only, from the last reading.
+var clockReading = null;   // { clock, at }: the server's latest clock, and when it arrived (performance.now())
+var clockTimer = null;
+const LOW_TIME_MS = 20000;
+
+/** Shows the server's clock reading; null hides the clocks (untimed games). */
+function setClock(clock){
+    clockReading = clock ? { clock: clock, at: performance.now() } : null;
+    $id("clockWhite").hidden = $id("clockBlack").hidden = $id("timeControl").hidden = !clock;
+    if(clock) $id("timeControl").textContent = "· Blitz " + clock.timeControl;
+    const running = !!(clock && clock.running);
+    if(running && !clockTimer) clockTimer = setInterval(renderClocks, 100);
+    if(!running && clockTimer){ clearInterval(clockTimer); clockTimer = null; }
+    renderClocks();
+}
+
+function clockMs(side){
+    const clock = clockReading.clock;
+    const stored = side === "WHITE" ? clock.whiteMs : clock.blackMs;
+    return clock.running === side ? Math.max(0, stored - (performance.now() - clockReading.at)) : stored;
+}
+
+/** "4:59"; tenths under ten seconds, "0:09.4". */
+function formatClock(ms){
+    const seconds = Math.floor(ms / 1000);
+    const text = Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+    return ms < 10000 ? text + "." + Math.floor(ms / 100) % 10 : text;
+}
+
+function renderClocks(){
+    if(!clockReading) return;
+    [["WHITE", "clockWhite"], ["BLACK", "clockBlack"]].forEach(([side, id]) => {
+        const ms = clockMs(side), el = $id(id);
+        el.textContent = formatClock(ms);
+        el.classList.toggle("running", clockReading.clock.running === side);
+        el.classList.toggle("low", ms < LOW_TIME_MS);
+    });
 }
 
 function finishOnline(state){
     if(!online || online.over) return;
     online.over = true;
-    clearInterval(online.timer);
+    endFollowing();
+    setClock(state.clock);
     gameOverShown = true;
     $id("claimBox").hidden = true;
     showOnlineResult(state);
@@ -742,6 +867,8 @@ function showOnlineResult(state){
         CHECKMATE: won ? ["Checkmate — you win", "You beat " + opponent + "."] : ["Checkmate — you lose", opponent + " got you this time."],
         RESIGNED: won ? ["You win", opponent + " resigned."] : ["You resigned", opponent + " wins."],
         ABANDONED: won ? ["You win", opponent + " left the game."] : ["Game abandoned", "You went too long without moving."],
+        TIMEOUT: !state.winner ? ["Draw on time", "A clock ran out, but the other side couldn't have checkmated."]
+               : won ? ["You win on time", opponent + " ran out of time."] : ["Out of time", "Your clock ran out. " + opponent + " wins."],
         STALEMATE: ["Stalemate", "No legal moves left — it's a draw."],
         DRAW: ["Draw", "The game is drawn."]
     };
@@ -790,9 +917,9 @@ function switchSideOrComputer(){
     else newGame(playerColor === "w" ? "black" : "white");
 }
 
-/** Stops following the online game, e.g. when another game starts. */
+/** Stops following the game being played (online or not), e.g. when another game starts. */
 function leaveOnline(){
-    if(online) clearInterval(online.timer);
+    stopFollowing();
     online = null;
     $id("claimBox").hidden = true;
 }
@@ -918,12 +1045,8 @@ async function startGame(choice){
         if(token !== startCounter) return;
         gameId = data.gameId;
         playerId = data.playerId;
-        if(data.startingMove){
-            const opening = data.startingMove;
-            const move = new Chess(chess.fen()).move({ from: opening.from, to: opening.to, promotion: opening.promotion || undefined });
-            createAnime(move, move);
-        }
         allMoves = playerMoves();
+        followGame(gameId);   // the computer's moves (its opening, when you play black), the clock, the result
         curMove = 0;
         refreshHud();
     })
@@ -962,20 +1085,11 @@ async function postMove(move){
         console.log(re)
         if(forGame !== gameId) return;
         createAnime(re.move, re.moveResult);
-        if(online){
-            // an online opponent's reply arrives through polling; a finished game is reported by the server
-            thinking = false;
-            refreshHud();
-            if(re.status !== "IN_PROGRESS") pollOnline();
-        }
-        else if(re.status === "IN_PROGRESS"){
-            refreshHud();
-            getOppMove();
-        }
-        else{
-            thinking = false;
-            refreshHud();
-        }
+        // the reply (the opponent's, or the computer's after it has thought) and the end of the
+        // game are pushed by the server; show anything that arrived while this move was on its way
+        thinking = false;
+        refreshHud();
+        catchUp();
     })
     .catch(err => { if(forGame === gameId) moveFailed(err); });
 }
@@ -985,27 +1099,8 @@ function moveFailed(err){
     thinking = false;
     refreshHud();
     if(err && err.message && !chess.game_over()) setStatus(err.message, "check");
-}
-
-function getOppMove(move){
-    console.log(JSON.stringify(move))
-    const forGame = gameId;
-    const path = `/game/${gameId}/opponents/move`
-    fetch(path , {
-        method: "GET",
-    })
-        .then(checkAuth)
-        .then(readResult)
-        .then(re => {
-            console.log(re)
-            if(forGame !== gameId) return;
-            createAnime(re.move, re.moveResult)
-            allMoves = playerMoves();
-            curMove = 0;
-            thinking = false;
-            refreshHud();
-        })
-        .catch(err => { if(forGame === gameId) moveFailed(err); });
+    // e.g. the move came too late and the game ended on time: the server has pushed the result.
+    if(live && live.latest && live.latest.status !== "IN_PROGRESS") onGameState(live.latest);
 }
 
 function move(from, to, promotion){

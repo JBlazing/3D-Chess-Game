@@ -1,6 +1,7 @@
 package com.jblazing.auth.config;
 
 import com.jblazing.auth.AccountOidcUserService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +43,8 @@ public class OAuthConfig {
     @Profile("Auth")
     public SecurityFilterChain oauthFilterChain(HttpSecurity http, AccountOidcUserService accountOidcUserService) throws Exception {
         http.authorizeHttpRequests(a -> a
+                        // the rest of a request that was authorized when it began, e.g. a game's event stream
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(LOGIN_PAGE, "/static/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

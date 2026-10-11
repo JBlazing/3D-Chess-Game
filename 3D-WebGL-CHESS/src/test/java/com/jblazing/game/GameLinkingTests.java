@@ -45,7 +45,7 @@ interface GameLinkingTests extends TestSupport {
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
 
         gameController().move(gameId, new Move("e2", "e4"), alice);
-        gameController().opponentMove(gameId, alice);
+        games().playComputerMove(gameId).orElseThrow();
         cache().removeGameState(gameId);   // as if it had expired from memory, or the server restarted
         Result third = gameController().move(gameId, new Move("d2", "d4"), alice);
 
@@ -62,7 +62,8 @@ interface GameLinkingTests extends TestSupport {
 
         // someone else's game looks exactly like a game that doesn't exist
         assertThat(statusOf(() -> gameController().move(gameId, new Move("e2", "e4"), bob))).isEqualTo(404);
-        assertThat(statusOf(() -> gameController().opponentMove(gameId, bob))).isEqualTo(404);
+        assertThat(statusOf(() -> gameController().state(gameId, bob))).isEqualTo(404);
+        assertThat(statusOf(() -> gameController().events(gameId, bob))).isEqualTo(404);
         assertThat(statusOf(() -> gameController().game(gameId, bob))).isEqualTo(404);
         assertThat(statusOf(() -> gameController().move(UUID.randomUUID(), new Move("e2", "e4"), alice))).isEqualTo(404);
     }
@@ -72,12 +73,12 @@ interface GameLinkingTests extends TestSupport {
         Player alice = newPlayer("alice");
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
 
-        assertThat(statusOf(() -> gameController().opponentMove(gameId, alice))).as("computer on your turn").isEqualTo(409);
+        assertThat(games().playComputerMove(gameId)).as("computer on your turn").isEmpty();
         assertThat(statusOf(() -> gameController().move(gameId, new Move("e2", "e5"), alice))).as("illegal move").isEqualTo(400);
         gameController().move(gameId, new Move("e2", "e4"), alice);
         assertThat(statusOf(() -> gameController().move(gameId, new Move("d2", "d4"), alice))).as("moving twice").isEqualTo(409);
-        gameController().opponentMove(gameId, alice);
-        assertThat(statusOf(() -> gameController().opponentMove(gameId, alice))).as("computer moving twice").isEqualTo(409);
+        games().playComputerMove(gameId).orElseThrow();
+        assertThat(games().playComputerMove(gameId)).as("computer moving twice").isEmpty();
     }
 
     @Test
@@ -86,7 +87,10 @@ interface GameLinkingTests extends TestSupport {
 
         GameStart start = gameController().startGame("BLACK", alice);
 
-        assertThat(start.startingMove()).isNotNull();
+        // the server plays the opening once the computer has "thought" (ComputerOpponent); here, at once
+        assertThat(gameController().state(start.gameId(), alice).moves()).isEmpty();
+        assertThat(statusOf(() -> gameController().move(start.gameId(), new Move("e7", "e5"), alice))).as("not your turn").isEqualTo(409);
+        games().playComputerMove(start.gameId()).orElseThrow();
         GameSummary saved = gameController().game(start.gameId(), alice);
         assertThat(saved.color()).isEqualTo("BLACK");
         assertThat(saved.moveCount()).isEqualTo(1);
@@ -107,7 +111,7 @@ interface GameLinkingTests extends TestSupport {
         GameSummary saved = gameController().game(gameId, alice);
         assertThat(saved.status()).isEqualTo("CHECKMATE");
         assertThat(saved.winner()).isEqualTo("WHITE");
-        assertThat(statusOf(() -> gameController().opponentMove(gameId, alice))).isEqualTo(409);
+        assertThat(games().playComputerMove(gameId)).isEmpty();
         assertThat(statusOf(() -> gameController().move(gameId, new Move("g1", "f1"), alice))).isEqualTo(409);
     }
 

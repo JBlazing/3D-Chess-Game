@@ -35,9 +35,10 @@ interface MigrationTests extends TestSupport {
 
     @Test
     default void everyChangesetIsApplied() throws SQLException {
-        // the ratings change has one variant for SQLite (plain ALTER TABLE) and one for everything else
+        // the ratings and clock changes have one variant for SQLite (plain ALTER TABLE) and one for everything else
         String ratings = isPostgres() ? "3-elo-ratings" : "3-elo-ratings-sqlite";
-        assertThat(applied().keySet()).containsExactly("1-create-user-account", "2-create-game", ratings, "4-spring-session");
+        String clock = isPostgres() ? "5-game-clock" : "5-game-clock-sqlite";
+        assertThat(applied().keySet()).containsExactly("1-create-user-account", "2-create-game", ratings, "4-spring-session", clock);
     }
 
     @Test
@@ -59,7 +60,8 @@ interface MigrationTests extends TestSupport {
     default void gameTable() throws SQLException {
         assertThat(columns("game")).containsOnlyKeys("id", "white_player", "black_player", "white_account_id",
                 "black_account_id", "status", "winner", "fen", "moves", "created_at", "updated_at", "rated",
-                "white_rating", "black_rating", "white_rating_change", "black_rating_change");
+                "white_rating", "black_rating", "white_rating_change", "black_rating_change",
+                "clock_initial_ms", "clock_increment_ms", "white_clock_ms", "black_clock_ms");
     }
 
     @Test

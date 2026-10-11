@@ -45,17 +45,19 @@
 
 <aside class='panel glass' aria-label='Game'>
     <section class='section'>
-        <h2 class='section-title'>Game</h2>
+        <h2 class='section-title'>Game <span class='time-control' id='timeControl' hidden></span></h2>
         <div class='players'>
             <div class='player' id='playerBlack'>
                 <span class='swatch black'></span>
                 <span class='player-name' id='playerBlackName'>Computer</span>
                 <span class='player-tag'>Black</span>
+                <span class='clock' id='clockBlack' role='timer' aria-label="Black's clock" hidden></span>
             </div>
             <div class='player' id='playerWhite'>
                 <span class='swatch white'></span>
                 <span class='player-name' id='playerWhiteName'>You</span>
                 <span class='player-tag'>White</span>
+                <span class='clock' id='clockWhite' role='timer' aria-label="White's clock" hidden></span>
             </div>
         </div>
         <div class='status' id='status' role='status'><span class='dot'></span><span id='statusText'>Starting game&hellip;</span></div>

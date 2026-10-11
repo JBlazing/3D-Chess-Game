@@ -117,7 +117,8 @@ interface RatingTests extends TestSupport {
     @Test
     default void anAbandonedGameCanBeClaimedAfterTwoMinutes() {
         Player alice = newPlayer("alice"), bob = newPlayer("bob");
-        UUID gameId = games().createNewGame(alice, bob);
+        // untimed: on a clock, an absent player's time runs out instead (see GameClockTests)
+        UUID gameId = games().createNewGame(alice, bob, null);
         games().playerMove(gameId, alice, new Move("e2", "e4"));   // bob to move
 
         assertThat(statusOf(() -> games().claimWin(gameId, alice))).as("opponent still has time").isEqualTo(409);

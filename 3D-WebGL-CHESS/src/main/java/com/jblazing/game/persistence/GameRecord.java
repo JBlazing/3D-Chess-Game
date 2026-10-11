@@ -70,6 +70,20 @@ public class GameRecord {
     @Column(name = "black_rating_change")
     private Integer blackRatingChange;
 
+    /** The blitz clock's time control; null for untimed games. */
+    @Column(name = "clock_initial_ms")
+    private Long clockInitialMs;
+
+    @Column(name = "clock_increment_ms")
+    private Long clockIncrementMs;
+
+    /** Each side's time left when the side to move began its turn, which was at {@link #updatedAt}. */
+    @Column(name = "white_clock_ms")
+    private Long whiteClockMs;
+
+    @Column(name = "black_clock_ms")
+    private Long blackClockMs;
+
     public GameRecord(String id, String whitePlayer, String blackPlayer, UserAccount whiteAccount, UserAccount blackAccount,
                       String status, String fen, Instant createdAt) {
         this.id = id;

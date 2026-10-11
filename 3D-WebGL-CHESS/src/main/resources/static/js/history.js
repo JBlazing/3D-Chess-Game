@@ -26,14 +26,15 @@ function el(tag, className, text){
 }
 
 function resultOf(game){
-    if(game.status === "IN_PROGRESS") return "open";
+    // stopped games (a new game replaced them) count as unfinished
+    if(game.status === "IN_PROGRESS" || game.status === "ABORTED") return "open";
     if(game.winner) return game.winner === game.color ? "win" : "loss";
     return "draw";
 }
 
 function endingOf(game){
     return { CHECKMATE: "Checkmate", STALEMATE: "Stalemate", DRAW: "Draw", RESIGNED: "Resignation",
-             ABANDONED: "Abandoned", IN_PROGRESS: "Not finished" }[game.status] || game.status;
+             ABANDONED: "Abandoned", TIMEOUT: "Out of time", ABORTED: "Stopped", IN_PROGRESS: "Not finished" }[game.status] || game.status;
 }
 
 function capitalize(word){
@@ -112,6 +113,7 @@ function gameCard(game){
         + (game.opponentRating != null ? " (" + game.opponentRating + ")" : "")));
     head.appendChild(vs);
     if(game.rated) head.appendChild(el("span", "tag", "Rated"));
+    if(game.timeControl) head.appendChild(el("span", "tag", "Blitz " + game.timeControl));
     const time = when(game.updatedAt);
     const stamp = el("time", "when", time.text);
     stamp.dateTime = game.updatedAt;
