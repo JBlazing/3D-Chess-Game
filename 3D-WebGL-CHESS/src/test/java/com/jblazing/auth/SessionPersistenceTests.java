@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 abstract class SessionPersistenceTests {
 
-    /** Properties pointing the app at the database under test. */
+    /** Properties pointing the app at the database (and Redis server) under test. */
     abstract Map<String, Object> database();
 
     private final HttpClient http = HttpClient.newHttpClient();

@@ -163,15 +163,14 @@ function validSide(choice){
 }
 
 // set while no game has been started (on arrival, or after cancelling a search with nothing
-// behind it): the New game dialog then stays open until a game is picked
+// behind it); the New game dialog can still be closed, and the board then waits for a choice
 var awaitingChoice = false;
 
-/** required: there is no game to go back to, so the dialog can't be dismissed. */
+/** required: there is no game to go back to, so the board waits for one to be picked. */
 function openSideChooser(required){
     if(required) awaitingChoice = true;
     document.querySelectorAll(".side-option").forEach(b => b.classList.toggle("current", b.dataset.side === sideChoice));
     $id("chooserWarning").hidden = !onlineInProgress();
-    $id("chooserCancel").hidden = awaitingChoice;
     updateOnlineSub();
     $id("gameOver").hidden = true;
     $id("sideChooser").hidden = false;
@@ -185,9 +184,8 @@ function updateOnlineSub(){
         : "Unrated · sign in to play rated games";
 }
 
-/** Closes the dialog, unless a game still has to be picked; force is for starting one. */
+/** Closes the dialog; force is for starting a game, which ends the wait for a choice. */
 function closeSideChooser(force){
-    if(awaitingChoice && !force) return;
     if(force) awaitingChoice = false;
     $id("sideChooser").hidden = true;
 }

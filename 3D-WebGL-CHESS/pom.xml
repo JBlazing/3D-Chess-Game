@@ -11,7 +11,6 @@
         <java.version>25</java.version>
         <spring.boot.version>3.5.16</spring.boot.version>
         <graaljs.version>25.4.4.1.1</graaljs.version>
-        <caffiene.version>3.1.8</caffiene.version>
         <loombok.version>1.18.48</loombok.version>
         <embedded.postgres.version>2.1.0</embedded.postgres.version>
         <embedded.postgres.binaries.version>16.4.0</embedded.postgres.binaries.version>
@@ -88,10 +87,10 @@
             <type>pom</type>
         </dependency>
 
+        <!-- Games in play are cached in Redis (RedisGameStateCache) -->
         <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <version>${caffiene.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
         <dependency>
@@ -120,6 +119,13 @@
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- A real Redis server for the tests, in a container: needs Docker (or Podman via DOCKER_HOST) -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
 

@@ -12,6 +12,8 @@ import com.jblazing.user.UserAccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -30,6 +32,7 @@ import java.util.Set;
 
 /**
  * The whole application (Google sign-in mode) on a test database; subclasses pick the database.
+ * Every subclass gets the test Redis server for the game state cache.
  * All test classes for one database share a single application context. The chess engine gets a
  * longer timeout than in production: interpreted GraalJS on a cold, busy test JVM can take more
  * than the default to make its first moves.
@@ -47,6 +50,11 @@ public abstract class DatabaseTest implements TestSupport {
     @Autowired private DataSource dataSource;
     @Autowired private AccountOidcUserService loginHook;
     @Autowired private CurrentPlayerResolver currentPlayerResolver;
+
+    @DynamicPropertySource
+    static void redis(DynamicPropertyRegistry registry) {
+        TestDatabases.useRedis(registry);
+    }
 
     @Override public GameService games() { return gameService; }
     @Override public GameController gameController() { return gameController; }
