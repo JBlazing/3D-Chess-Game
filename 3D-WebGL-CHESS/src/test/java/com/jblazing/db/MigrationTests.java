@@ -36,7 +36,7 @@ interface MigrationTests extends TestSupport {
     @Test
     default void everyChangesetIsApplied() throws SQLException {
         assertThat(applied().keySet()).containsExactly("1-create-user-account", "2-create-game", "3-elo-ratings",
-                "4-spring-session", "5-game-clock");
+                "4-spring-session", "5-game-clock", "6-username");
     }
 
     @Test
@@ -51,7 +51,7 @@ interface MigrationTests extends TestSupport {
     @Test
     default void userAccountTable() throws SQLException {
         assertThat(columns("user_account")).containsOnlyKeys("id", "provider", "provider_subject", "email", "name",
-                "picture_url", "created_at", "last_login_at", "rating", "rated_games");
+                "picture_url", "created_at", "last_login_at", "rating", "rated_games", "username");
     }
 
     @Test

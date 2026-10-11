@@ -23,12 +23,14 @@ public class BaseController{
     private final String indexHtml;
     private final String loginHtml;
     private final String historyHtml;
+    private final String accountHtml;
     private final boolean authEnabled;
 
     public BaseController(ObjectProvider<ClientRegistrationRepository> clientRegistrations) throws URISyntaxException, IOException {
         this.loginHtml = Files.readString(Paths.get(getClass().getResource("/static/login.html").toURI()));
         this.indexHtml = Files.readString(Paths.get(getClass().getResource("/static/index.html").toURI()));
         this.historyHtml = Files.readString(Paths.get(getClass().getResource("/static/history.html").toURI()));
+        this.accountHtml = Files.readString(Paths.get(getClass().getResource("/static/account.html").toURI()));
         this.authEnabled = clientRegistrations.getIfAvailable() != null;
     }
 
@@ -50,6 +52,12 @@ public class BaseController{
     @GetMapping("/history")
     public ResponseEntity<String> history() {
         return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(historyHtml);
+    }
+
+    /** Username, name and picture; a new player is sent here to choose a username. */
+    @GetMapping("/account")
+    public ResponseEntity<String> account() {
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(accountHtml);
     }
 
 

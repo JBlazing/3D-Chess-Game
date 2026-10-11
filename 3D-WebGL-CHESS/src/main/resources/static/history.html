@@ -17,8 +17,10 @@
     <div class='topbar-right'>
         <a class='btn btn-primary' href='/index'>New game</a>
         <div id='session' class='session' hidden>
-            <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
-            <span id='sessionName' class='session-name'></span>
+            <a class='session-link' href='/account' aria-label='Your account'>
+                <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
+                <span id='sessionName' class='session-name'></span>
+            </a>
             <span id='sessionRating' class='session-rating' title='Your rating' hidden></span>
             <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
         </div>

@@ -404,7 +404,7 @@ public class GameService {
 
     private static LiveGame.Side side(Player player, UserAccount account, Integer rating) {
         String name = player.isComputer() ? "Computer"
-                : account != null ? Objects.requireNonNullElse(account.getName(), "Player")
+                : account != null ? account.displayName()
                 : "Guest";
         return new LiveGame.Side(name, rating);
     }

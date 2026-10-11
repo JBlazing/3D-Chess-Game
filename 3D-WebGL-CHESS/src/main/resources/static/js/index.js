@@ -571,11 +571,26 @@ function sideLabel(side, isYou){
     return side.rating != null ? name + " · " + side.rating : name;
 }
 
-/** Joins matchmaking and waits for an opponent (the queue is polled, which also keeps our place). */
+/**
+ * Joins matchmaking and waits for an opponent (the queue is polled, which also keeps our place).
+ * From an online game still being played this only resigns it: the result card then offers to
+ * find another opponent, rather than queueing straight away.
+ */
 async function findOpponent(){
     closeSideChooser(true);
     $id("gameOver").hidden = true;
-    await resignOnlineGame();
+    if(onlineInProgress()){
+        const forGame = online.gameId;
+        try{
+            const state = await fetch(`/game/${forGame}/resign`, { method: "POST", headers: csrfHeaders() }).then(checkAuth).then(readResult);
+            if(online && online.gameId === forGame) finishOnline(state);
+        }
+        catch(err){
+            console.log(err);
+            setStatus(err.message || "Couldn't resign.", "check");
+        }
+        return;
+    }
     leaveOnline();
     startCounter++;                // drop any computer game still starting
     stopSearch();

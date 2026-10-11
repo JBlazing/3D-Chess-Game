@@ -6,6 +6,7 @@ import com.jblazing.user.UserAccount;
 import com.jblazing.user.UserAccountRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -54,7 +56,8 @@ class EloMatchMakingTest {
         UserAccount account = new UserAccount("google", name, Instant.EPOCH);
         long id = nextId++;
         account.setId(id);
-        account.setName(name);
+        account.setName("Full name of " + name);
+        account.setUsername(name);
         account.setRating(rating);
         byId.put(id, account);
         return Player.account(id);
@@ -159,6 +162,29 @@ class EloMatchMakingTest {
 
         assertThat(matchmaking.status(alice).opponentName()).isEqualTo("near");
         assertThat(state(far)).isEqualTo("SEARCHING");
+    }
+
+    @Test
+    void signedInPlayersNeedAUsernameToQueue() {
+        Player nameless = player("nameless", 1200);
+        byId.get(nameless.accountId()).setUsername(null);
+
+        assertThatThrownBy(() -> matchmaking.joinQueue(nameless))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value()).isEqualTo(409);
+        assertThat(matchmaking.getQueueSize()).isZero();
+    }
+
+    @Test
+    void opponentsSeeTheUsernameNotTheFullName() {
+        Player alice = player("alice", 1200), bob = player("bob", 1200);
+        matchmaking.joinQueue(alice);
+        matchmaking.joinQueue(bob);
+
+        tick();
+
+        assertThat(matchmaking.status(alice).opponentName()).isEqualTo("bob");
+        assertThat(matchmaking.status(bob).opponentName()).isEqualTo("alice");
     }
 
     @Test

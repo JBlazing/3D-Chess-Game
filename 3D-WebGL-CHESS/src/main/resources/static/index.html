@@ -36,8 +36,10 @@
         <a class='nav-link glass' href='/history'>History</a>
     </div>
     <div id='session' class='session glass' hidden>
-        <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
-        <span id='sessionName' class='session-name'></span>
+        <a class='session-link' href='/account' aria-label='Your account'>
+            <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
+            <span id='sessionName' class='session-name'></span>
+        </a>
         <span id='sessionRating' class='session-rating' title='Your rating' hidden></span>
         <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
     </div>

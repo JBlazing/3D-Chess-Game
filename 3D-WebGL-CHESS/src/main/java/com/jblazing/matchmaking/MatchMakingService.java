@@ -4,7 +4,11 @@ import com.jblazing.player.Player;
 
 public interface MatchMakingService {
 
-    /** Puts the player in the queue (or keeps them there) and returns where they stand. */
+    /**
+     * Puts the player in the queue (or keeps them there) and returns where they stand.
+     *
+     * @throws org.springframework.web.server.ResponseStatusException 409 for a signed-in player without a username
+     */
     QueueStatus joinQueue(Player player);
 
     boolean leaveQueue(Player player);

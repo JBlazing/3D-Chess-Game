@@ -6,7 +6,6 @@ import com.jblazing.player.Player;
 import com.jblazing.user.UserAccount;
 
 import java.time.Instant;
-import java.util.Objects;
 
 /**
  * One of a player's games, from their side of the board.
@@ -25,13 +24,13 @@ public record GameSummary(String gameId, String color, String opponent, String o
                           int moveCount, String moves, String fen, boolean rated, Integer rating, Integer opponentRating,
                           Integer ratingChange, Instant createdAt, Instant updatedAt, String timeControl) {
 
-    /** Must be called inside a transaction: it reads the opponent's account name. */
+    /** Must be called inside a transaction: it reads the opponent's username. */
     static GameSummary of(GameRecord record, Player player) {
         boolean white = record.getWhitePlayer().equals(player.id());
         String opponent = white ? record.getBlackPlayer() : record.getWhitePlayer();
         UserAccount opponentAccount = white ? record.getBlackAccount() : record.getWhiteAccount();
         String opponentName = Player.COMPUTER.id().equals(opponent) ? "Computer"
-                : opponentAccount != null ? Objects.requireNonNullElse(opponentAccount.getName(), "Player")
+                : opponentAccount != null ? opponentAccount.displayName()
                 : "Guest";
         String moves = record.getMoves();
         return new GameSummary(record.getId(), white ? "WHITE" : "BLACK", opponent, opponentName,

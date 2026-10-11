@@ -39,9 +39,20 @@ public interface TestSupport {
     /** The player a request from this signed-in user resolves to (the real CurrentPlayerResolver). */
     Player playerFor(OidcUser user);
 
-    /** A brand-new signed-in player, unique to the calling test, optionally with a given rating. */
+    /**
+     * A brand-new signed-in player, unique to the calling test, optionally with a given rating. They
+     * have a username (the name plus a random suffix), as anyone playing has: see {@link #usernameOf}.
+     */
     default Player newPlayer(String name) {
-        return playerFor(signIn(name + "-" + UUID.randomUUID(), name));
+        Player player = playerFor(signIn(name + "-" + UUID.randomUUID(), name));
+        UserAccount account = account(player);
+        account.setUsername(name + "_" + UUID.randomUUID().toString().substring(0, 8));
+        accounts().save(account);
+        return player;
+    }
+
+    default String usernameOf(Player player) {
+        return account(player).getUsername();
     }
 
     default Player newPlayer(String name, int rating) {

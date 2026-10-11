@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<title>Account - 3D Chess</title>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<script type='text/javascript' src='/static/js/session.js'></script>
+<link rel='stylesheet' href='/static/css/history.css'>
+<link rel='stylesheet' href='/static/css/account.css'>
+</head>
+<body>
+
+<header class='topbar'>
+    <a class='brand' href='/index' aria-label='3D Chess, back to the game'>
+        <span class='brand-mark' aria-hidden='true'>&#9822;</span>
+        <span class='brand-text'>3D Chess</span>
+    </a>
+    <div class='topbar-right'>
+        <a class='btn' href='/history' id='historyLink' hidden>History</a>
+        <a class='btn btn-primary' href='/index' id='playLink' hidden>Play</a>
+        <div id='session' class='session' hidden>
+            <a class='session-link' href='/account' aria-label='Your account'>
+                <img id='sessionPicture' alt='' referrerpolicy='no-referrer'>
+                <span id='sessionName' class='session-name'></span>
+            </a>
+            <span id='sessionRating' class='session-rating' title='Your rating' hidden></span>
+            <button type='button' class='btn btn-pill' onclick='signOut()'>Sign out</button>
+        </div>
+    </div>
+</header>
+
+<main class='page account-page'>
+    <div id='loading' class='card' aria-busy='true'>
+        <div class='skeleton'></div>
+    </div>
+
+    <!-- shown until the player has a username: it's required before playing -->
+    <form id='setup' class='card' hidden novalidate onsubmit='chooseUsername(event)'>
+        <h1>Choose a username</h1>
+        <p class='sub'>This is the name other players see in games and in your history. You can change it later on this page.</p>
+        <label class='field'>
+            <span class='field-label'>Username</span>
+            <input id='usernameInput' name='username' autocomplete='username' spellcheck='false'
+                   minlength='3' maxlength='20' pattern='[A-Za-z0-9_]{3,20}' required
+                   aria-describedby='usernameHint' oninput='usernameTyped("usernameInput", "usernameHint")'>
+            <span class='field-hint' id='usernameHint' role='status'>3&ndash;20 letters, digits or underscores.</span>
+        </label>
+        <div class='form-actions'>
+            <button type='submit' class='btn btn-primary' id='usernameSave'>Continue</button>
+        </div>
+    </form>
+
+    <form id='profile' class='card' hidden novalidate onsubmit='saveProfile(event)'>
+        <div class='profile-head'>
+            <img id='picturePreview' class='avatar' alt='' referrerpolicy='no-referrer' hidden>
+            <div class='avatar avatar-empty' id='pictureEmpty' aria-hidden='true'>&#9823;</div>
+            <div>
+                <h1 id='profileUsername'></h1>
+                <p class='sub' id='profileEmail'></p>
+            </div>
+        </div>
+        <dl class='facts'>
+            <div><dt>Rating</dt><dd id='profileRating'></dd></div>
+            <div><dt>Rated games</dt><dd id='profileRatedGames'></dd></div>
+        </dl>
+        <label class='field'>
+            <span class='field-label'>Username</span>
+            <input id='profileUsernameInput' name='username' autocomplete='username' spellcheck='false'
+                   minlength='3' maxlength='20' pattern='[A-Za-z0-9_]{3,20}' required
+                   aria-describedby='profileUsernameHint' oninput='usernameTyped("profileUsernameInput", "profileUsernameHint")'>
+            <span class='field-hint' id='profileUsernameHint' role='status'>What other players see, in your games old and new.</span>
+        </label>
+        <label class='field'>
+            <span class='field-label'>Name</span>
+            <input id='nameInput' name='name' autocomplete='name' maxlength='255' aria-describedby='nameHint'>
+            <span class='field-hint' id='nameHint'>Only shown here. Other players see your username.</span>
+        </label>
+        <label class='field'>
+            <span class='field-label'>Picture URL</span>
+            <input id='pictureInput' name='picture' type='url' inputmode='url' maxlength='2048' spellcheck='false'
+                   placeholder='https://' aria-describedby='pictureHint' oninput='previewPicture()'>
+            <span class='field-hint' id='pictureHint'>A link to an image. Leave it empty for no picture.</span>
+        </label>
+        <div class='form-actions'>
+            <button type='submit' class='btn btn-primary' id='profileSave'>Save changes</button>
+            <span class='form-status' id='profileStatus' role='status'></span>
+        </div>
+    </form>
+
+    <div id='signedOut' class='card' hidden>
+        <h1>Account</h1>
+        <p class='sub'>Sign in to set up your account. Without sign-in you play as a guest.</p>
+        <div class='form-actions'><a class='btn btn-primary' href='/'>Sign in</a></div>
+    </div>
+</main>
+
+<script type='text/javascript' src='/static/js/account.js'></script>
+</body>
+</html>

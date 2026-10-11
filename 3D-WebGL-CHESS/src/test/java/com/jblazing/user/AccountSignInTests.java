@@ -10,7 +10,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Every Google sign-in creates the user's account the first time, and refreshes it afterwards. */
+/**
+ * Every Google sign-in creates the user's account the first time, and refreshes it afterwards;
+ * the name and picture come from Google only the first time, then they're the player's to edit.
+ */
 interface AccountSignInTests extends TestSupport {
 
     @Test
@@ -40,7 +43,7 @@ interface AccountSignInTests extends TestSupport {
 
         UserAccount second = accounts().findByProviderAndProviderSubject("google", subject).orElseThrow();
         assertThat(second.getId()).isEqualTo(first.getId());
-        assertThat(second.getName()).isEqualTo("New Name");
+        assertThat(second.getName()).as("the player's own name, not Google's").isEqualTo("Old Name");
         assertThat(second.getCreatedAt()).isEqualTo(first.getCreatedAt());
         assertThat(second.getLastLoginAt()).isAfter(first.getLastLoginAt());
     }
@@ -62,6 +65,7 @@ interface AccountSignInTests extends TestSupport {
         Map<String, Object> body = authController().user(new OAuth2AuthenticationToken(user, user.getAuthorities(), "google")).getBody();
 
         assertThat(body).containsEntry("id", id)
+                .containsEntry("username", "")
                 .containsEntry("name", "Me")
                 .containsEntry("email", subject + "@example.com")
                 .containsEntry("rating", 1200)

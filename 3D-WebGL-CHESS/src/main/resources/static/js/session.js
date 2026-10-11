@@ -1,7 +1,8 @@
 /*
 	Session helpers shared by the signed-in pages: the CSRF token for POSTs, sending the user
 	back to the login page when their session has ended, the account badge and signing out.
-	The badge expects #session, #sessionName and #sessionPicture elements.
+	The badge expects #session, #sessionName and #sessionPicture elements. A signed-in player
+	without a username is sent to the account page to choose one.
 */
 
 function csrfToken(){
@@ -18,15 +19,23 @@ function checkAuth(re){
     return re;
 }
 
-/** Fills in the account badge; resolves to the signed-in user, or null when signed out or sign-in is off. */
+/**
+ * Fills in the account badge; resolves to the signed-in user, or null when signed out or sign-in is off.
+ * Other players see the username, so that's what the badge shows.
+ */
 function loadUser(){
     return fetch("/auth/user")
     .then(re => re.status === 200 ? re.json() : null)
     .then(user => {
         if(!user) return null;
-        document.getElementById("sessionName").textContent = user.name || user.email;
+        if(!user.username && window.location.pathname !== "/account"){
+            window.location.href = "/account";
+            return user;
+        }
+        document.getElementById("sessionName").textContent = user.username || user.name || user.email;
         const picture = document.getElementById("sessionPicture");
-        if(user.picture) picture.src = user.picture; else picture.hidden = true;
+        picture.hidden = !user.picture;
+        if(user.picture) picture.src = user.picture;
         const rating = document.getElementById("sessionRating");
         if(rating && user.rating != null){
             rating.textContent = user.rating;

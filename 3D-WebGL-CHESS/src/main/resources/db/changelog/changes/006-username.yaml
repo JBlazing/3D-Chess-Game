@@ -1,0 +1,22 @@
+# Usernames: what other players see, chosen by the player (the provider's full name stays private).
+# Null until the player picks one; unique ignoring case, so "Bob" and "bob" can't both exist.
+databaseChangeLog:
+  - changeSet:
+      id: 6-username
+      author: jblazing
+      changes:
+        - addColumn:
+            tableName: user_account
+            columns:
+              - column:
+                  name: username
+                  type: VARCHAR(20)
+        # an expression index, which Liquibase's createIndex can't describe
+        - sql:
+            sql: CREATE UNIQUE INDEX uk_user_account_username ON user_account (lower(username))
+      rollback:
+        - sql:
+            sql: DROP INDEX uk_user_account_username
+        - dropColumn:
+            tableName: user_account
+            columnName: username

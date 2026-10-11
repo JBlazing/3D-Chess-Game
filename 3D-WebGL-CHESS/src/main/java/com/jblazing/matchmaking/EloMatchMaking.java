@@ -7,7 +7,9 @@ import com.jblazing.user.UserAccount;
 import com.jblazing.user.UserAccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -90,9 +92,13 @@ public class EloMatchMaking implements MatchMakingService {
         Entry entry = queue.get(player.id());
         if (entry == null) {
             Optional<UserAccount> account = Optional.ofNullable(player.accountId()).flatMap(userAccountRepository::findById);
+            // opponents are shown your username, so signed-in players need one before playing online
+            if (account.isPresent() && account.get().getUsername() == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Choose a username first");
+            }
             entry = new Entry(player,
                     account.map(UserAccount::getRating).orElse(RatingService.STARTING_RATING),
-                    account.map(UserAccount::getName).orElse("Guest"), now);
+                    account.map(UserAccount::displayName).orElse("Guest"), now);
             queue.put(player.id(), entry);
             logger.info("{} joined the queue (rating {}{})", player.id(), entry.rating, entry.rated() ? "" : ", unrated guest");
         }

@@ -31,3 +31,6 @@ databaseChangeLog:
   - include:
       file: changes/005-game-clock.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/006-username.yaml
+      relativeToChangelogFile: true

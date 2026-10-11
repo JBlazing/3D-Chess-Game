@@ -71,6 +71,11 @@ body {
 .session img { width: 26px; height: 26px; border-radius: 50%; }
 .session-name { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
+/* the badge's picture and name lead to the account page */
+.session-link { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.session-link:hover .session-name { text-decoration: underline; }
+.session-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 999px; }
+
 .btn {
     display: inline-flex;
     align-items: center;
