@@ -4,6 +4,8 @@ import com.jblazing.controller.AuthController;
 import com.jblazing.controller.GameController;
 import com.jblazing.game.cache.GameStateCache;
 import com.jblazing.game.service.GameService;
+import com.jblazing.model.GameClock;
+import com.jblazing.model.GameState;
 import com.jblazing.player.Player;
 import com.jblazing.rating.RatingService;
 import com.jblazing.user.UserAccount;
@@ -12,7 +14,9 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.sql.DataSource;
+import java.time.Duration;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 
 /**
  * What the database test suites (JUnit test interfaces) can use. Implemented by {@link DatabaseTest}.
@@ -69,9 +73,26 @@ public interface TestSupport {
 
     void sql(String statement);
 
-    /** An SQL expression for "this many minutes ago" in an updated_at column. */
-    default String minutesAgo(int minutes) {
-        return "now() - interval '" + minutes + " minutes'";
+    /** Changes a game in progress where it is kept, e.g. to set up a position. Nobody is told of the change. */
+    default void changeGame(UUID gameId, UnaryOperator<GameState> change) {
+        cache().storeGameState(gameId, change.apply(cache().getGameState(gameId)));
+    }
+
+    /** Puts the game in the given position (FEN). */
+    default void setPosition(UUID gameId, String fen) {
+        changeGame(gameId, s -> new GameState(s.gameId(), s.white(), s.black(), fen, s.status(), s.clock(), s.winner(),
+                s.moves(), s.rated(), s.whiteRating(), s.blackRating(),
+                s.createdAt(), s.updatedAt()));
+    }
+
+    /** Moves the game back in time by this many minutes, as if the side to move had been thinking that much longer. */
+    default void minutesPass(UUID gameId, int minutes) {
+        Duration ago = Duration.ofMinutes(minutes);
+        changeGame(gameId, s -> new GameState(s.gameId(), s.white(), s.black(), s.boardState(), s.status(),
+                s.clock() == null ? null : new GameClock(s.clock().initialMs(), s.clock().incrementMs(),
+                        s.clock().whiteMs(), s.clock().blackMs(), s.clock().turnStartedAt().minus(ago)),
+                s.winner(), s.moves(), s.rated(), s.whiteRating(), s.blackRating(),
+                s.createdAt().minus(ago), s.updatedAt().minus(ago)));
     }
 
     /** The HTTP status a call fails with, or 0 if it succeeds. */

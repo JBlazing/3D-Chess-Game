@@ -20,7 +20,7 @@ import java.util.concurrent.ScheduledFuture;
 /**
  * Ends timed games when a flag falls, whether or not anyone is watching: each running clock has a
  * check scheduled for the moment the side to move runs out of time, moved whenever the game changes.
- * Games still being played when the server starts are picked up from the database.
+ * Games still being played when the server starts are picked up again.
  */
 @Component
 public class FlagWatcher {
@@ -44,7 +44,7 @@ public class FlagWatcher {
 
     @EventListener(ApplicationReadyEvent.class)
     public void watchGamesInProgress() {
-        gameService.timedGamesInProgress().forEach(gameId -> gameService.stateOf(gameId).ifPresent(state -> watch(gameId, state)));
+        gameService.gamesInProgress().forEach(gameId -> gameService.stateOf(gameId).ifPresent(state -> watch(gameId, state)));
     }
 
     /** Schedules the game's flag check for its current deadline, replacing any earlier one; none once the game is over. */

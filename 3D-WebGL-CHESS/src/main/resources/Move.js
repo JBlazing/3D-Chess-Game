@@ -16,11 +16,7 @@ function evalMove(playerMove, currentBoardState) {
         move = moves[p];
         playerMove = new (Java.type("com.jblazing.model.Move"))(move.from, move.to, move.promotion || null)
     }
-    log.info(playerMove.toString())
-    log.info(JSON.stringify(move));
-    log.info(JSON.stringify(game));
     const result = game.move(move);
-    log.info(JSON.stringify(result));
     const newBoardState = game.fen();
     const history = game.history({verbose: true});
     const resultClass = Java.type("com.jblazing.model.Result")

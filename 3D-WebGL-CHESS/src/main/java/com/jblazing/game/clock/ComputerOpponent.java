@@ -47,7 +47,7 @@ public class ComputerOpponent {
     /** After a restart: computer moves that were due when the server stopped. */
     @EventListener(ApplicationReadyEvent.class)
     public void watchGamesInProgress() {
-        gameService.timedGamesInProgress().forEach(gameId -> gameService.stateOf(gameId).ifPresent(state -> watch(gameId, state)));
+        gameService.gamesInProgress().forEach(gameId -> gameService.stateOf(gameId).ifPresent(state -> watch(gameId, state)));
     }
 
     /**

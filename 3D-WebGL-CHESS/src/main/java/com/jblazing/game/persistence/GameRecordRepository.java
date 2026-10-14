@@ -16,7 +16,10 @@ public interface GameRecordRepository extends JpaRepository<GameRecord, String> 
     @Query("select g from GameRecord g where g.whitePlayer = :player or g.blackPlayer = :player order by g.updatedAt desc limit 50")
     List<GameRecord> findRecentForPlayer(@Param("player") String player);
 
-    /** Ids of the games still being played on a clock, so their flags can be watched after a restart. */
+    /**
+     * Ids of games still being played on a clock that were started before games in progress were kept
+     * only in Redis, so their flags can be watched after a restart.
+     */
     @Query("select g.id from GameRecord g where g.status = 'IN_PROGRESS' and g.clockInitialMs is not null")
     List<String> findTimedInProgress();
 }

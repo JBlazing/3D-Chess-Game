@@ -28,8 +28,8 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * Plays games for their players. The in-memory cache keeps active games fast; every move is also
- * written to the database, which is where a game is reloaded from once it has left the cache.
+ * Plays games for their players. A game in progress is kept only in the {@link GameStateCache}
+ * (Redis); the database gets it once, when it ends, and is where finished games are read from.
  *
  * <p>Games between two signed-in players are rated: whenever one ends, however it ends, the result
  * goes to the {@link RatingService}. Games against the computer never change ratings.
@@ -51,6 +51,9 @@ public class GameService {
     public static final String TIMEOUT = "TIMEOUT";
     /** A game against the computer that was stopped because the player started another game. */
     public static final String ABORTED = "ABORTED";
+
+    /** The most games {@link #gamesFor} lists. */
+    static final int RECENT_GAMES = 50;
 
     private final GameStateCache gameStateCache;
     private final JavaScriptEngine javaScriptEngine;
@@ -93,22 +96,14 @@ public class GameService {
         UUID gameId = UUID.randomUUID();
         Instant now = Instant.now();
         GameClock clock = timeControl == null ? null : GameClock.start(timeControl, now);
-        GameState state = new GameState(gameId, white, black, GameState.STARTING_POSITION, GameState.IN_PROGRESS, clock);
         UserAccount whiteAccount = account(white), blackAccount = account(black);
-        GameRecord record = new GameRecord(gameId.toString(), white.id(), black.id(),
-                whiteAccount, blackAccount, state.status(), state.boardState(), now);
         // rated only when both sides are signed-in players: never the computer, never guests
-        record.setRated(whiteAccount != null && blackAccount != null);
-        record.setWhiteRating(whiteAccount == null ? null : whiteAccount.getRating());
-        record.setBlackRating(blackAccount == null ? null : blackAccount.getRating());
-        if (clock != null) {
-            record.setClockInitialMs(clock.initialMs());
-            record.setClockIncrementMs(clock.incrementMs());
-        }
-        writeClock(record, clock);
-        gameRecordRepository.save(record);
+        boolean rated = whiteAccount != null && blackAccount != null;
+        GameState state = GameState.start(gameId, white, black, clock, rated,
+                whiteAccount == null ? null : whiteAccount.getRating(),
+                blackAccount == null ? null : blackAccount.getRating(), now);
         gameStateCache.storeGameState(gameId, state);
-        logger.info("Created {} game {} white={} black={}{}", record.isRated() ? "rated" : "unrated", gameId, white.id(), black.id(),
+        logger.info("Created {} game {} white={} black={}{}", rated ? "rated" : "unrated", gameId, white.id(), black.id(),
                 clock == null ? "" : " clock " + TimeControl.label(clock.initialMs(), clock.incrementMs()));
         events.publishEvent(new GameChanged(gameId, state));
         return gameId;
@@ -184,8 +179,7 @@ public class GameService {
         synchronized (lock(gameId)) {
             GameState state = gameFor(gameId, player);
             requireInProgress(state);
-            GameRecord record = gameRecordRepository.findById(gameId.toString()).orElseThrow();
-            if (!canClaimWin(state, record, player)) {
+            if (!canClaimWin(state, player)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Your opponent still has time to move");
             }
             finish(state, "ABANDONED", isWhite(state, player) ? "WHITE" : "BLACK", Instant.now());
@@ -210,22 +204,22 @@ public class GameService {
     }
 
     /** The game from the player's side, pushed (and polled) while it is played. */
-    @Transactional(readOnly = true)
     public LiveGame liveGame(UUID gameId, Player player) {
         Instant now = Instant.now();
         GameState state = gameFor(gameId, player);
-        GameRecord record = gameRecordRepository.findById(gameId.toString()).orElseThrow();
         boolean white = isWhite(state, player);
         boolean opponentToMove = !state.isOver() && !state.playerToMove().id().equals(player.id());
-        long idle = opponentToMove ? Duration.between(record.getUpdatedAt(), now).toSeconds() : 0;
-        return new LiveGame(record.getId(), white ? "WHITE" : "BLACK",
-                side(state.white(), record.getWhiteAccount(), record.getWhiteRating()),
-                side(state.black(), record.getBlackAccount(), record.getBlackRating()),
-                isOnline(state), record.isRated(), record.getStatus(), record.getWinner(), record.getFen(),
-                record.getMoves().isEmpty() ? List.of() : List.of(record.getMoves().split(" ")),
-                Math.max(0, idle), canClaimWin(state, record, player),
-                white ? record.getWhiteRatingChange() : record.getBlackRatingChange(),
-                clockView(state, now));
+        long idle = opponentToMove ? Duration.between(state.updatedAt(), now).toSeconds() : 0;
+        // ratings change when a rated game ends, by which time it is in the database
+        Integer ratingChange = state.isOver() && state.rated()
+                ? gameRecordRepository.findById(gameId.toString())
+                        .map(record -> white ? record.getWhiteRatingChange() : record.getBlackRatingChange())
+                        .orElse(null)
+                : null;
+        return new LiveGame(gameId.toString(), white ? "WHITE" : "BLACK",
+                side(state.white(), state.whiteRating()), side(state.black(), state.blackRating()),
+                state.isOnline(), state.rated(), state.status(), state.winner(), state.boardState(), state.moves(),
+                Math.max(0, idle), canClaimWin(state, player), ratingChange, clockView(state, now));
     }
 
     /**
@@ -241,36 +235,47 @@ public class GameService {
         return Optional.ofNullable(loadState(gameId));
     }
 
-    /** The games being played on a clock right now. */
-    public List<UUID> timedGamesInProgress() {
-        return gameRecordRepository.findTimedInProgress().stream().map(UUID::fromString).toList();
+    /** The games being played right now, e.g. to pick up their clocks and computer moves after a restart. */
+    public Set<UUID> gamesInProgress() {
+        Set<UUID> games = new HashSet<>(gameStateCache.gamesInProgress());
+        // timed games started before games in progress were kept only in Redis are in the database
+        gameRecordRepository.findTimedInProgress().forEach(id -> games.add(UUID.fromString(id)));
+        return games;
     }
 
     /** The player's online game that is still being played, if any, e.g. to pick it up again after a reload. */
-    @Transactional(readOnly = true)
     public Optional<LiveGame> activeOnlineGame(Player player) {
-        return (player.accountId() != null
-                ? gameRecordRepository.findRecentForAccount(player.accountId())
-                : gameRecordRepository.findRecentForPlayer(player.id())).stream()
-                .filter(record -> GameState.IN_PROGRESS.equals(record.getStatus()))
-                .filter(record -> !Player.COMPUTER.id().equals(record.getWhitePlayer()) && !Player.COMPUTER.id().equals(record.getBlackPlayer()))
-                .findFirst()
-                .map(record -> liveGame(UUID.fromString(record.getId()), player));
+        return inProgress(player).stream()
+                .filter(GameState::isOnline)
+                .max(Comparator.comparing(GameState::updatedAt))
+                .map(state -> liveGame(state.gameId(), player));
     }
 
+    /** The player's most recent games, newest first: the ones in progress and the finished ones. */
     @Transactional(readOnly = true)
     public List<GameSummary> gamesFor(Player player) {
-        List<GameRecord> records = player.accountId() != null
+        Map<String, GameSummary> games = new HashMap<>();
+        inProgress(player).forEach(state -> games.put(state.gameId().toString(), summary(state, player)));
+        (player.accountId() != null
                 ? gameRecordRepository.findRecentForAccount(player.accountId())
-                : gameRecordRepository.findRecentForPlayer(player.id());
-        return records.stream()
-                .map(record -> GameSummary.of(record, player))
+                : gameRecordRepository.findRecentForPlayer(player.id()))
+                .forEach(record -> games.putIfAbsent(record.getId(), GameSummary.of(record, player)));
+        return games.values().stream()
+                .sorted(Comparator.comparing(GameSummary::updatedAt).reversed())
+                .limit(RECENT_GAMES)
                 .toList();
     }
 
     /** One of the player's games, e.g. to replay it. */
     @Transactional(readOnly = true)
     public GameSummary summaryFor(UUID gameId, Player player) {
+        GameState state = gameStateCache.getGameState(gameId);
+        if (state != null && !state.isOver()) {
+            if (!state.hasPlayer(player)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such game");
+            }
+            return summary(state, player);
+        }
         return gameRecordRepository.findById(gameId.toString())
                 .filter(record -> record.getWhitePlayer().equals(player.id()) || record.getBlackPlayer().equals(player.id()))
                 .map(record -> GameSummary.of(record, player))
@@ -281,23 +286,13 @@ public class GameService {
     /** Records a move made at {@code now}: the mover's clock is charged up to then, and the opponent's starts. */
     private Result apply(GameState state, Result result, Instant now) {
         GameClock clock = state.isTimed() ? state.clock().afterMove(state.whiteToMove(), now) : null;
-        GameState next = new GameState(state.gameId(), state.white(), state.black(), result.boardState(), result.status(), clock);
-        GameRecord record = gameRecordRepository.findById(state.gameId().toString()).orElseThrow();
-        record.setFen(next.boardState());
-        record.setStatus(next.status());
-        if ("CHECKMATE".equals(next.status())) {
-            // the side that just moved delivered mate
-            record.setWinner("w".equals(result.moveResult().get("color")) ? "WHITE" : "BLACK");
-        }
-        Object san = result.moveResult().get("san");
-        record.setMoves(record.getMoves().isEmpty() ? String.valueOf(san) : record.getMoves() + " " + san);
-        record.setUpdatedAt(now);
-        writeClock(record, clock);
-        gameRecordRepository.save(record);
-        gameStateCache.storeGameState(state.gameId(), next);
-        if (next.isOver()) {
-            ratingService.applyResult(record.getId());
-        }
+        // the side that just moved delivered mate
+        String winner = "CHECKMATE".equals(result.status())
+                ? ("w".equals(result.moveResult().get("color")) ? "WHITE" : "BLACK")
+                : null;
+        GameState next = state.afterMove(String.valueOf(result.moveResult().get("san")), result.boardState(),
+                result.status(), winner, clock, now);
+        save(next);
         events.publishEvent(new GameChanged(state.gameId(), next));
         return result;
     }
@@ -305,17 +300,22 @@ public class GameService {
     /** Ends the game without a move (resignation, abandonment, timeout), stops its clock and rates it. */
     private void finish(GameState state, String status, String winner, Instant now) {
         GameClock clock = state.isTimed() ? state.clock().stopped(state.whiteToMove(), now) : null;
-        GameState next = new GameState(state.gameId(), state.white(), state.black(), state.boardState(), status, clock);
-        GameRecord record = gameRecordRepository.findById(state.gameId().toString()).orElseThrow();
-        record.setStatus(status);
-        record.setWinner(winner);
-        record.setUpdatedAt(now);
-        writeClock(record, clock);
-        gameRecordRepository.save(record);
-        gameStateCache.storeGameState(state.gameId(), next);
+        GameState next = state.ended(status, winner, clock, now);
+        save(next);
         logger.info("Game {} ended: {} (winner {})", state.gameId(), status, winner);
-        ratingService.applyResult(record.getId());
         events.publishEvent(new GameChanged(state.gameId(), next));
+    }
+
+    /**
+     * Keeps the game as it now stands. A game that has just ended is written to the database first,
+     * and rated: if that fails, the game is left as it was, still in progress.
+     */
+    private void save(GameState state) {
+        if (state.isOver()) {
+            gameRecordRepository.save(toRecord(state));
+            ratingService.applyResult(state.gameId().toString());
+        }
+        gameStateCache.storeGameState(state.gameId(), state);
     }
 
     /** Stops the player's unfinished games against the computer: no winner, the clock stopped, nothing rated. */
@@ -323,21 +323,22 @@ public class GameService {
         if (player.isComputer()) {
             return;
         }
-        List<GameRecord> recent = player.accountId() != null
-                ? gameRecordRepository.findRecentForAccount(player.accountId())
-                : gameRecordRepository.findRecentForPlayer(player.id());
-        recent.stream()
-                .filter(record -> GameState.IN_PROGRESS.equals(record.getStatus()))
-                .filter(record -> Player.COMPUTER.id().equals(record.getWhitePlayer()) || Player.COMPUTER.id().equals(record.getBlackPlayer()))
-                .map(record -> UUID.fromString(record.getId()))
-                .forEach(gameId -> {
-                    synchronized (lock(gameId)) {
-                        GameState state = loadState(gameId);
-                        if (state != null && !state.isOver()) {
-                            finish(state, ABORTED, null, Instant.now());
-                        }
-                    }
-                });
+        for (UUID gameId : gameStateCache.gamesInProgress(player)) {
+            synchronized (lock(gameId)) {
+                GameState state = loadState(gameId);
+                if (state != null && !state.isOver() && !state.isOnline()) {
+                    finish(state, ABORTED, null, Instant.now());
+                }
+            }
+        }
+    }
+
+    /** The player's games in progress. */
+    private List<GameState> inProgress(Player player) {
+        return gameStateCache.gamesInProgress(player).stream()
+                .map(this::loadState)
+                .filter(state -> state != null && !state.isOver() && state.hasPlayer(player))
+                .toList();
     }
 
     /** The side to move ran out of time. */
@@ -370,6 +371,24 @@ public class GameService {
         return pieces.toString();
     }
 
+    /** The finished game as the database keeps it. */
+    private GameRecord toRecord(GameState state) {
+        GameRecord record = new GameRecord(state.gameId().toString(), state.white().id(), state.black().id(),
+                account(state.white()), account(state.black()), state.status(), state.boardState(), state.createdAt());
+        record.setWinner(state.winner());
+        record.setMoves(String.join(" ", state.moves()));
+        record.setUpdatedAt(state.updatedAt());
+        record.setRated(state.rated());
+        record.setWhiteRating(state.whiteRating());
+        record.setBlackRating(state.blackRating());
+        if (state.isTimed()) {
+            record.setClockInitialMs(state.clock().initialMs());
+            record.setClockIncrementMs(state.clock().incrementMs());
+        }
+        writeClock(record, state.clock());
+        return record;
+    }
+
     private static void writeClock(GameRecord record, GameClock clock) {
         record.setWhiteClockMs(clock == null ? null : clock.whiteMs());
         record.setBlackClockMs(clock == null ? null : clock.blackMs());
@@ -388,25 +407,26 @@ public class GameService {
                 running ? (whiteToMove ? "WHITE" : "BLACK") : null);
     }
 
-    private boolean canClaimWin(GameState state, GameRecord record, Player player) {
-        return isOnline(state) && !state.isTimed() && !state.isOver()
+    private static boolean canClaimWin(GameState state, Player player) {
+        return state.isOnline() && !state.isTimed() && !state.isOver()
                 && !state.playerToMove().id().equals(player.id())
-                && Duration.between(record.getUpdatedAt(), Instant.now()).compareTo(ABANDON_AFTER) >= 0;
-    }
-
-    private static boolean isOnline(GameState state) {
-        return !state.white().isComputer() && !state.black().isComputer();
+                && Duration.between(state.updatedAt(), Instant.now()).compareTo(ABANDON_AFTER) >= 0;
     }
 
     private static boolean isWhite(GameState state, Player player) {
         return state.white().id().equals(player.id());
     }
 
-    private static LiveGame.Side side(Player player, UserAccount account, Integer rating) {
+    /** One side of the board as players see it: the current username, so renames show in every game. */
+    private LiveGame.Side side(Player player, Integer rating) {
         String name = player.isComputer() ? "Computer"
-                : account != null ? account.displayName()
-                : "Guest";
+                : Optional.ofNullable(account(player)).map(UserAccount::displayName).orElse("Guest");
         return new LiveGame.Side(name, rating);
+    }
+
+    private GameSummary summary(GameState state, Player player) {
+        Player opponent = isWhite(state, player) ? state.black() : state.white();
+        return GameSummary.of(state, player, side(opponent, null).name());
     }
 
     /** The game, from the cache or else the database, provided the player is in it. */
@@ -419,7 +439,10 @@ public class GameService {
         return state;
     }
 
-    /** The game from the cache or else the database; null if there is no such game. */
+    /**
+     * The game from the cache or else the database; null if there is no such game. The database has
+     * finished games, and games in progress from before they were kept only in the cache.
+     */
     private GameState loadState(UUID gameId) {
         GameState state = gameStateCache.getGameState(gameId);
         if (state == null) {
@@ -438,7 +461,10 @@ public class GameService {
         return new GameState(UUID.fromString(record.getId()),
                 Player.of(record.getWhitePlayer(), record.getWhiteAccount() == null ? null : record.getWhiteAccount().getId()),
                 Player.of(record.getBlackPlayer(), record.getBlackAccount() == null ? null : record.getBlackAccount().getId()),
-                record.getFen(), record.getStatus(), clock);
+                record.getFen(), record.getStatus(), clock, record.getWinner(),
+                record.getMoves().isEmpty() ? List.of() : List.of(record.getMoves().split(" ")),
+                record.isRated(), record.getWhiteRating(), record.getBlackRating(),
+                record.getCreatedAt(), record.getUpdatedAt());
     }
 
     private void requireInProgress(GameState state) {

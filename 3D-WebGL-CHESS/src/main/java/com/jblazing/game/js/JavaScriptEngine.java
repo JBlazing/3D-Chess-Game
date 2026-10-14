@@ -11,6 +11,8 @@ import org.graalvm.polyglot.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -26,6 +28,8 @@ import java.util.concurrent.*;
 public class JavaScriptEngine {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JavaScriptEngine.class);
+    private static final String START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    private static final int WARM_UP_MOVES = 5;
 
     private final Source chessJsSource;
     private final ExecutorService executor;
@@ -94,6 +98,27 @@ public class JavaScriptEngine {
         }
     }
 
+    /**
+     * Plays a few moves once the app is up, in the background, so the first real move doesn't pay
+     * for parsing Chess.js and running it uncompiled (most of a second on a cold engine).
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void warmUp() {
+        executor.execute(() -> {
+            long started = System.nanoTime();
+            try {
+                for (int i = 0; i < WARM_UP_MOVES; i++) {
+                    move(new Move("e2", "e4"), START_POSITION);
+                    move(null, START_POSITION);
+                }
+                LOGGER.info("Chess engine warmed up in {} ms", (System.nanoTime() - started) / 1_000_000);
+            } catch (RuntimeException e) {
+                // only the first real move is slower for it
+                LOGGER.warn("Chess engine warm-up failed", e);
+            }
+        });
+    }
+
     private Context getContext(Source source) {
 
         Context context = Context.newBuilder("js")
@@ -102,11 +127,7 @@ public class JavaScriptEngine {
                 .allowHostClassLookup(className -> true)
                 .build();
         context.eval(source);
-        context.getBindings("js").putMember("log", LOGGER);
         return context;
-
-
-
     }
 
 }

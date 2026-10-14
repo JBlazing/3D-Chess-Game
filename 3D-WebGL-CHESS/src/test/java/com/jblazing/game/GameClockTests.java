@@ -37,8 +37,7 @@ interface GameClockTests extends TestSupport {
     default void theComputersReplyRunsItsOwnClock() {
         Player alice = newPlayer("alice");
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
-        sql("update game set updated_at = " + minutesAgo(1) + " where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        minutesPass(gameId, 1);
 
         gameController().move(gameId, new Move("e2", "e4"), alice);
         games().playComputerMove(gameId).orElseThrow();
@@ -98,8 +97,7 @@ interface GameClockTests extends TestSupport {
     default void runningOutAgainstTheComputerLosesUnrated() {
         Player alice = newPlayer("alice");
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
-        sql("update game set updated_at = " + minutesAgo(6) + " where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        minutesPass(gameId, 6);
 
         assertThat(statusOf(() -> gameController().move(gameId, new Move("e2", "e4"), alice))).isEqualTo(409);
 
@@ -115,14 +113,12 @@ interface GameClockTests extends TestSupport {
     default void aMoveSpendsTheMoversTimeAndAddsTheIncrement() {
         Player alice = newPlayer("alice"), bob = newPlayer("bob");
         UUID gameId = games().createNewGame(alice, bob);
-        // white has been thinking for a minute; the clock is rebuilt from the database
-        sql("update game set updated_at = " + minutesAgo(1) + " where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        // white has been thinking for a minute
+        minutesPass(gameId, 1);
 
         games().playerMove(gameId, alice, new Move("e2", "e4"));
 
         LiveGame.Clock clock = games().liveGame(gameId, bob).clock();
-        // a little leeway either way: "a minute ago" comes from the database's clock, not the JVM's
         assertThat(clock.whiteMs()).as("5:00 - 1:00 + 0:03").isBetween(242_000L, 243_100L);
         assertThat(clock.blackMs()).isBetween(295_000L, 300_000L);
         assertThat(clock.running()).isEqualTo("BLACK");
@@ -132,8 +128,7 @@ interface GameClockTests extends TestSupport {
     default void movingAfterTheFlagFellLosesOnTime() {
         Player alice = newPlayer("alice"), bob = newPlayer("bob");
         UUID gameId = games().createNewGame(alice, bob);
-        sql("update game set updated_at = " + minutesAgo(6) + " where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        minutesPass(gameId, 6);
 
         assertThat(statusOf(() -> games().playerMove(gameId, alice, new Move("e2", "e4")))).isEqualTo(409);
 
@@ -182,8 +177,8 @@ interface GameClockTests extends TestSupport {
         Player alice = newPlayer("alice", 1200), bob = newPlayer("bob", 1300);
         UUID gameId = games().createNewGame(alice, bob);
         // black to move with a queen; white has only a king and could never checkmate
-        sql("update game set fen = 'k6q/8/8/8/8/8/8/K7 b - - 0 60', updated_at = " + minutesAgo(6) + " where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        setPosition(gameId, "k6q/8/8/8/8/8/8/K7 b - - 0 60");
+        minutesPass(gameId, 6);
 
         assertThat(games().flagIfOutOfTime(gameId)).isTrue();
 

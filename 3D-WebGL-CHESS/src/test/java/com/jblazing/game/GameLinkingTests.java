@@ -18,41 +18,60 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Games belong to the signed-in player who started them, are saved as they are played, and enforce the rules. */
+/**
+ * Games belong to the signed-in player who started them, are kept in Redis while they are played and
+ * saved to the database once they end, and enforce the rules.
+ */
 interface GameLinkingTests extends TestSupport {
 
     @Test
-    default void aNewGameIsLinkedToThePlayersAccount() throws SQLException {
+    default void aGameIsSavedToTheDatabaseOnlyOnceItEnds() throws SQLException {
         Player alice = newPlayer("alice");
-
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
+        gameController().move(gameId, new Move("e2", "e4"), alice);
+        games().playComputerMove(gameId).orElseThrow();
 
         try (Connection c = dataSource().getConnection(); Statement s = c.createStatement();
-             ResultSet row = s.executeQuery("select white_player, black_player, white_account_id, black_account_id, status, rated from game where id = '" + gameId + "'")) {
+             ResultSet row = s.executeQuery("select count(*) from game where id = '" + gameId + "'")) {
+            row.next();
+            assertThat(row.getInt(1)).as("not in the database while it is played").isZero();
+        }
+        assertThat(games().gamesInProgress()).as("picked up again after a restart").contains(gameId);
+
+        games().resign(gameId, alice);
+
+        assertThat(games().gamesInProgress()).doesNotContain(gameId);
+        try (Connection c = dataSource().getConnection(); Statement s = c.createStatement();
+             ResultSet row = s.executeQuery("select white_player, black_player, white_account_id, black_account_id, status, winner, moves, rated from game where id = '" + gameId + "'")) {
             assertThat(row.next()).isTrue();
             assertThat(row.getString("white_player")).isEqualTo(alice.id());
             assertThat(row.getString("black_player")).isEqualTo("COMPUTER");
             assertThat(row.getLong("white_account_id")).isEqualTo(alice.accountId());
             assertThat(row.getObject("black_account_id")).isNull();
-            assertThat(row.getString("status")).isEqualTo("IN_PROGRESS");
+            assertThat(row.getString("status")).isEqualTo("RESIGNED");
+            assertThat(row.getString("winner")).isEqualTo("BLACK");
+            assertThat(row.getString("moves")).startsWith("e4 ").matches("\\S+ \\S+");
             assertThat(row.getBoolean("rated")).isFalse();
         }
     }
 
     @Test
-    default void movesAreSavedAndTheGameReloadsFromTheDatabase() {
+    default void aFinishedGameReloadsFromTheDatabase() {
         Player alice = newPlayer("alice");
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
-
         gameController().move(gameId, new Move("e2", "e4"), alice);
         games().playComputerMove(gameId).orElseThrow();
-        cache().removeGameState(gameId);   // as if it had expired from memory, or the server restarted
         Result third = gameController().move(gameId, new Move("d2", "d4"), alice);
+        games().resign(gameId, alice);
+
+        cache().removeGameState(gameId);   // as when a finished game expires from Redis
 
         assertThat(third.moveResult().get("san")).isEqualTo("d4");
         GameSummary saved = gameController().game(gameId, alice);
+        assertThat(saved.status()).isEqualTo("RESIGNED");
         assertThat(saved.moveCount()).isEqualTo(3);
         assertThat(saved.moves()).startsWith("e4 ").endsWith(" d4");
+        assertThat(gameController().state(gameId, alice).moves()).hasSize(3);
     }
 
     @Test
@@ -101,8 +120,7 @@ interface GameLinkingTests extends TestSupport {
         Player alice = newPlayer("alice");
         UUID gameId = gameController().startGame("WHITE", alice).gameId();
         // one move from mate: Rd8#
-        sql("update game set fen = '6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1' where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        setPosition(gameId, "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
 
         Result mate = gameController().move(gameId, new Move("d1", "d8"), alice);
 
@@ -124,6 +142,8 @@ interface GameLinkingTests extends TestSupport {
         List<GameSummary> mine = gameController().myGames(alice);
 
         assertThat(mine).extracting(GameSummary::gameId).containsExactlyInAnyOrder(asWhite.toString(), asBlack.toString());
+        // the first was stopped by the second, so it is in the database; the second is only in Redis
+        assertThat(mine).extracting(GameSummary::status).containsExactlyInAnyOrder("ABORTED", "IN_PROGRESS");
         assertThat(mine).extracting(GameSummary::opponentName).containsOnly("Computer");
         assertThat(gameController().myGames(bob)).isEmpty();
     }

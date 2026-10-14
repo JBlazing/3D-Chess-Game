@@ -1,6 +1,7 @@
 package com.jblazing.game.service;
 
 import com.jblazing.game.persistence.GameRecord;
+import com.jblazing.model.GameState;
 import com.jblazing.model.TimeControl;
 import com.jblazing.player.Player;
 import com.jblazing.user.UserAccount;
@@ -41,5 +42,17 @@ public record GameSummary(String gameId, String color, String opponent, String o
                 white ? record.getWhiteRatingChange() : record.getBlackRatingChange(),
                 record.getCreatedAt(), record.getUpdatedAt(),
                 record.getClockInitialMs() == null ? null : TimeControl.label(record.getClockInitialMs(), record.getClockIncrementMs()));
+    }
+
+    /** A game in progress, which isn't in the database yet. */
+    static GameSummary of(GameState state, Player player, String opponentName) {
+        boolean white = state.white().id().equals(player.id());
+        return new GameSummary(state.gameId().toString(), white ? "WHITE" : "BLACK",
+                (white ? state.black() : state.white()).id(), opponentName, state.status(), state.winner(),
+                state.moves().size(), String.join(" ", state.moves()), state.boardState(), state.rated(),
+                white ? state.whiteRating() : state.blackRating(),
+                white ? state.blackRating() : state.whiteRating(),
+                null, state.createdAt(), state.updatedAt(),
+                state.isTimed() ? TimeControl.label(state.clock().initialMs(), state.clock().incrementMs()) : null);
     }
 }

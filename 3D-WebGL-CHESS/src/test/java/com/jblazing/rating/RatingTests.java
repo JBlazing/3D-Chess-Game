@@ -86,8 +86,7 @@ interface RatingTests extends TestSupport {
     default void stalemateScoresADraw() {
         Player alice = newPlayer("alice", 1200), bob = newPlayer("bob", 1260);
         UUID gameId = games().createNewGame(alice, bob);
-        sql("update game set fen = 'k7/8/1K6/2Q5/8/8/8/8 w - - 0 60' where id = '" + gameId + "'");
-        cache().removeGameState(gameId);
+        setPosition(gameId, "k7/8/1K6/2Q5/8/8/8/8 w - - 0 60");
 
         games().playerMove(gameId, alice, new Move("c5", "c7"));
 
@@ -102,8 +101,7 @@ interface RatingTests extends TestSupport {
 
         games().resign(games().createNewGame(alice, Player.COMPUTER), alice);   // a loss
         UUID win = games().createNewGame(alice, Player.COMPUTER);
-        sql("update game set fen = '6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1' where id = '" + win + "'");
-        cache().removeGameState(win);
+        setPosition(win, "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
         games().playerMove(win, alice, new Move("d1", "d8"));                 // a win by checkmate
 
         LiveGame result = games().liveGame(win, alice);
@@ -124,7 +122,7 @@ interface RatingTests extends TestSupport {
         assertThat(statusOf(() -> games().claimWin(gameId, alice))).as("opponent still has time").isEqualTo(409);
         assertThat(statusOf(() -> games().claimWin(gameId, bob))).as("can't claim on your own move").isEqualTo(409);
 
-        sql("update game set updated_at = " + minutesAgo(3) + " where id = '" + gameId + "'");
+        minutesPass(gameId, 3);
         LiveGame idle = games().liveGame(gameId, alice);
         assertThat(idle.canClaimWin()).isTrue();
         assertThat(idle.opponentIdleSeconds()).isGreaterThanOrEqualTo(170);

@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 
-/** A game as stored in the database; the source of truth when it is no longer cached in memory. */
+/** A finished game as stored in the database; games in progress are only in the GameStateCache (Redis). */
 @Entity
 @Table(name = "game")
 @Getter
