@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        The chess site, built together:
+          chess-engine-api  the messages the web app and the engine exchange over ActiveMQ, and the rules of chess (Chess.js)
+          chess-engine      plays moves: takes move requests off the queue, runs them through Chess.js on GraalJS, replies
+          3D-WebGL-CHESS    the web app: pages, sign-in, games, clocks, ratings; asks the engine for every move
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.jblazing</groupId>
+    <artifactId>chess-parent</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>chess-engine-api</module>
+        <module>chess-engine</module>
+        <module>3D-WebGL-CHESS</module>
+    </modules>
+
+    <properties>
+        <java.version>25</java.version>
+        <spring.boot.version>3.5.16</spring.boot.version>
+        <graaljs.version>25.4.4.1.1</graaljs.version>
+        <loombok.version>1.18.48</loombok.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.jblazing</groupId>
+                <artifactId>chess-engine-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jblazing</groupId>
+                <artifactId>chess-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <docker>
+                            <!-- the image builder gets the DOCKER_HOST socket, not /var/run/docker.sock:
+                                 needed for rootless Podman (DOCKER_HOST=unix:///run/user/1000/podman/podman.sock) -->
+                            <bindHostToBuilder>true</bindHostToBuilder>
+                        </docker>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

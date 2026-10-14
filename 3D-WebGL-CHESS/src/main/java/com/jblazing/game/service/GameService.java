@@ -2,7 +2,7 @@ package com.jblazing.game.service;
 
 
 import com.jblazing.game.cache.GameStateCache;
-import com.jblazing.game.js.JavaScriptEngine;
+import com.jblazing.game.engine.ChessEngineClient;
 import com.jblazing.game.persistence.GameRecord;
 import com.jblazing.game.persistence.GameRecordRepository;
 import com.jblazing.model.GameClock;
@@ -56,7 +56,7 @@ public class GameService {
     static final int RECENT_GAMES = 50;
 
     private final GameStateCache gameStateCache;
-    private final JavaScriptEngine javaScriptEngine;
+    private final ChessEngineClient chessEngine;
     private final GameRecordRepository gameRecordRepository;
     private final UserAccountRepository userAccountRepository;
     private final RatingService ratingService;
@@ -65,13 +65,13 @@ public class GameService {
     // moves on the same game are applied one at a time; striped so unrelated games don't wait on each other
     private final Object[] locks = new Object[64];
 
-    public GameService(GameStateCache gameStateCache, JavaScriptEngine javaScriptEngine,
+    public GameService(GameStateCache gameStateCache, ChessEngineClient chessEngine,
                        GameRecordRepository gameRecordRepository, UserAccountRepository userAccountRepository,
                        RatingService ratingService, ApplicationEventPublisher events,
                        @Value("${game.clock.initial:PT5M}") Duration clockInitial,
                        @Value("${game.clock.increment:PT3S}") Duration clockIncrement) {
         this.gameStateCache = gameStateCache;
-        this.javaScriptEngine = javaScriptEngine;
+        this.chessEngine = chessEngine;
         this.gameRecordRepository = gameRecordRepository;
         this.userAccountRepository = userAccountRepository;
         this.ratingService = ratingService;
@@ -123,7 +123,7 @@ public class GameService {
                 timeOut(state, now);
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Your time ran out");
             }
-            Result result = javaScriptEngine.move(move, state.boardState())
+            Result result = chessEngine.move(move, state.boardState())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Illegal move"));
             return apply(state, result, now);
         }
@@ -155,7 +155,7 @@ public class GameService {
                 timeOut(state, now);
                 return Optional.empty();
             }
-            Result result = javaScriptEngine.move(null, state.boardState())
+            Result result = chessEngine.move(null, state.boardState())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The computer could not move"));
             return Optional.of(apply(state, result, Instant.now()));
         }

@@ -10,6 +10,8 @@
 
 # Maven build output
 /3D-WebGL-CHESS/target/
+/chess-engine/target/
+/chess-engine-api/target/
 
 # Local SQLite database
 chess.db*

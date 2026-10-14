@@ -32,13 +32,14 @@ import java.util.Set;
 
 /**
  * The whole application (Google sign-in mode) on a test database; subclasses pick the database.
- * Every subclass gets the test Redis server for the game state cache.
+ * Every subclass gets the test Redis server for the game state cache, and the real chess engine on a
+ * test ActiveMQ broker ({@link TestEngine}).
  * All test classes for one database share a single application context. The chess engine gets a
  * longer timeout than in production: interpreted GraalJS on a cold, busy test JVM can take more
  * than the default to make its first moves.
  */
 @SpringBootTest(properties = {"GOOGLE_CLIENT_ID=test-client-id", "GOOGLE_CLIENT_SECRET=test-secret",
-        "game.chess.engine.executor.timeout=PT60S"})
+        "game.chess.engine.timeout=PT60S"})
 public abstract class DatabaseTest implements TestSupport {
 
     @Autowired private GameService gameService;
@@ -52,8 +53,9 @@ public abstract class DatabaseTest implements TestSupport {
     @Autowired private CurrentPlayerResolver currentPlayerResolver;
 
     @DynamicPropertySource
-    static void redis(DynamicPropertyRegistry registry) {
+    static void redisAndEngine(DynamicPropertyRegistry registry) {
         TestDatabases.useRedis(registry);
+        TestEngine.useEngine(registry);
     }
 
     @Override public GameService games() { return gameService; }

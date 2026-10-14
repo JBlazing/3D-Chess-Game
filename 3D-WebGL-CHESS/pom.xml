@@ -3,15 +3,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.jblazing</groupId>
+    <parent>
+        <groupId>com.jblazing</groupId>
+        <artifactId>chess-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
     <artifactId>3D-WebGL-CHESS</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
 
     <properties>
-        <java.version>25</java.version>
-        <spring.boot.version>3.5.16</spring.boot.version>
-        <graaljs.version>25.4.4.1.1</graaljs.version>
-        <loombok.version>1.18.48</loombok.version>
         <embedded.postgres.version>2.1.0</embedded.postgres.version>
         <embedded.postgres.binaries.version>16.4.0</embedded.postgres.binaries.version>
     </properties>
@@ -28,12 +28,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
-    </parent>
 
     <!-- Additional lines to be added here... -->
     <dependencies>
@@ -74,17 +68,15 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Moves are played by the chess engine service, asked over ActiveMQ (ChessEngineClient) -->
         <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>polyglot</artifactId>
-            <version>${graaljs.version}</version>
+            <groupId>com.jblazing</groupId>
+            <artifactId>chess-engine-api</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>js</artifactId>
-            <version>${graaljs.version}</version>
-            <type>pom</type>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-activemq</artifactId>
         </dependency>
 
         <!-- Games in play are cached in Redis (RedisGameStateCache) -->
@@ -126,6 +118,18 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- The real chess engine, run by the tests on an ActiveMQ broker inside the test JVM (vm://) -->
+        <dependency>
+            <groupId>com.jblazing</groupId>
+            <artifactId>chess-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-broker</artifactId>
             <scope>test</scope>
         </dependency>
 
