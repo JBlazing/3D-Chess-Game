@@ -73,7 +73,9 @@ public class JavaScriptEngine {
                     move(new Move("e2", "e4"), START_POSITION);
                     move(null, START_POSITION);
                 }
-                LOGGER.info("Chess engine warmed up in {} ms", (System.nanoTime() - started) / 1_000_000);
+                // "Interpreted" means no JIT compiler (e.g. not on a GraalVM JDK): every move runs far slower
+                LOGGER.info("Chess engine warmed up in {} ms on the {} runtime",
+                        (System.nanoTime() - started) / 1_000_000, engine.getImplementationName());
             } catch (RuntimeException e) {
                 // only the first real move is slower for it
                 LOGGER.warn("Chess engine warm-up failed", e);

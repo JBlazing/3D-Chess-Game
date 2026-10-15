@@ -12,6 +12,11 @@
     <!-- Plays moves for the web app: move requests come off an ActiveMQ queue, Chess.js runs them on GraalJS -->
     <artifactId>chess-engine</artifactId>
 
+    <properties>
+        <docker.image>chess-engine:${project.version}</docker.image>
+        <docker.image.skip>false</docker.image.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.jblazing</groupId>
@@ -66,13 +71,42 @@
                     <classifier>exec</classifier>
                     <jvmArguments>-XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI</jvmArguments>
                 </configuration>
+            </plugin>
+
+            <!--
+                The docker image (Dockerfile), built on package once the jar is: on a trimmed GraalVM CE of
+                the same release as GraalJS (graalvm.* in the root pom), so GraalJS can compile Chess.js.
+                Uses the docker command, so DOCKER_HOST is honoured (e.g. a Podman socket).
+                Skip with -Ddocker.image.skip=true.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
                 <executions>
-                    <!-- builds the docker image on package, like the web app; it runs the exec jar.
-                         Skip with -Dspring-boot.build-image.skip=true -->
                     <execution>
+                        <id>docker-image</id>
+                        <phase>package</phase>
                         <goals>
-                            <goal>build-image-no-fork</goal>
+                            <goal>exec</goal>
                         </goals>
+                        <configuration>
+                            <skip>${docker.image.skip}</skip>
+                            <executable>docker</executable>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                            <arguments>
+                                <argument>build</argument>
+                                <argument>--build-arg</argument>
+                                <argument>GRAALVM_RELEASE=${graalvm.release}</argument>
+                                <argument>--build-arg</argument>
+                                <argument>GRAALVM_ARCHIVE=${graalvm.archive}</argument>
+                                <argument>--build-arg</argument>
+                                <argument>JAR=target/${project.build.finalName}-exec.jar</argument>
+                                <argument>-t</argument>
+                                <argument>${docker.image}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
