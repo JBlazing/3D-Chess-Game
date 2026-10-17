@@ -97,7 +97,10 @@ release:
   # one release at a time
   resource_group: release
   script:
-
+    - test -n "$RELEASE_TOKEN" || { echo "Set the RELEASE_TOKEN CI/CD variable (see the top of .gitlab-ci.yml)"; exit 1; }
+    - RELEASE=${RELEASE_VERSION:-${VERSION%-SNAPSHOT}}
+    - echo "releasing $RELEASE from $VERSION"
+    # the release plugin commits, tags and pushes: from the branch (the job starts on a detached HEAD),
     # and as the token (its scm URLs are the plain $CI_SERVER_URL/$CI_PROJECT_PATH.git)
     - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
     - git config --global user.name "$GITLAB_USER_NAME"
