@@ -1,0 +1,28 @@
+# The ActiveMQ broker the web app and the engines talk through (/opt/activemq on the pi). The web app
+# reaches it as `activemq` on the shared `chess` network, created once with `podman network create chess`;
+# engines connect to port 61616 on this host. Copy .env.example to .env and fill it in, then
+# `podman-compose up -d`.
+services:
+  activemq:
+    image: apache/activemq-classic:6.2.0
+    container_name: activemq
+    restart: always
+    ports:
+      - "61616:61616"
+      # the web console, on the pi only: reach it with ssh -L 8161:localhost:8161 pi
+      - "127.0.0.1:8161:8161"
+    environment:
+      ACTIVEMQ_CONNECTION_USER: ${ACTIVEMQ_USER:-admin}
+      ACTIVEMQ_CONNECTION_PASSWORD: ${ACTIVEMQ_PASSWORD}
+      ACTIVEMQ_WEB_USER: ${ACTIVEMQ_WEB_USER:-admin}
+      ACTIVEMQ_WEB_PASSWORD: ${ACTIVEMQ_WEB_PASSWORD}
+    volumes:
+      - activemq-data:/opt/apache-activemq/data
+    networks: [chess]
+
+volumes:
+  activemq-data:
+
+networks:
+  chess:
+    external: true

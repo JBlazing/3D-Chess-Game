@@ -1,0 +1,23 @@
+# The docker registry on the pi that `mvn deploy` pushes the images to (docker.registry in the root pom).
+# Copy this directory to the pi and run `docker compose up -d` in it.
+services:
+  registry:              # our images: push and pull
+    image: registry:3
+    restart: always
+    ports: ["5000:5000"]
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - ./data/registry:/var/lib/registry
+
+  mirror:                # pull-through cache for Docker Hub
+    image: registry:3
+    restart: always
+    ports: ["5001:5000"]
+    environment:
+      REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io
+      # optional, raises Docker Hub's rate limits:
+      # REGISTRY_PROXY_USERNAME: youruser
+      # REGISTRY_PROXY_PASSWORD: your-access-token
+    volumes:
+      - ./data/mirror:/var/lib/registry

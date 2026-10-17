@@ -8,8 +8,8 @@
 #             The version is the current one without -SNAPSHOT; to choose it, run the job with the variables
 #             RELEASE_VERSION and/or NEXT_VERSION (e.g. 0.1.0 and 0.2.0-SNAPSHOT).
 #
-# The release job needs the CI/CD variable RELEASE_TOKEN (masked, protected): a project access token with
-# the Maintainer role and the write_repository scope, which pushes the release commits and the tag.
+# The release job needs the CI/CD variable RELEASE_TOKEN (masked, protected, on a protected branch): a
+# personal access token (glpat-) with the write_repository scope, which pushes the release commits and the tag.
 #
 # The images are built for the pi's architecture (arm64) only.
 
@@ -100,17 +100,20 @@ release:
     - test -n "$RELEASE_TOKEN" || { echo "Set the RELEASE_TOKEN CI/CD variable (see the top of .gitlab-ci.yml)"; exit 1; }
     - RELEASE=${RELEASE_VERSION:-${VERSION%-SNAPSHOT}}
     - echo "releasing $RELEASE from $VERSION"
-    # the release plugin commits, tags and pushes: from the branch (the job starts on a detached HEAD),
-    # and as the token (its scm URLs are the plain $CI_SERVER_URL/$CI_PROJECT_PATH.git)
+    # the release plugin commits, tags and pushes: from the branch (the job starts on a detached HEAD)
     - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
     - git config --global user.name "$GITLAB_USER_NAME"
     - git config --global user.email "$GITLAB_USER_EMAIL"
-    - git config --global url."${CI_SERVER_PROTOCOL}://oauth2:${RELEASE_TOKEN}@${CI_SERVER_HOST}/".insteadOf "${CI_SERVER_URL}/"
+    # the git URL rewrites in effect (credentials hidden): the runner can add its own, with the job token,
+    # which can't push. So the token goes to the release plugin directly (-Dusername/-Dpassword below): it
+    # puts it in the URLs it pushes to and clones from, where no rewrite replaces it.
+    - git config --show-origin --get-regexp '^url\.' | sed -E 's#//[^/@]*@#//***@#g' || echo "no git URL rewrites"
     # versions, commit, tag v$RELEASE, next -SNAPSHOT, push. The test stage has already tested this commit.
-    - mvn $MAVEN_CLI release:prepare -DreleaseVersion="$RELEASE" ${NEXT_VERSION:+-DdevelopmentVersion="$NEXT_VERSION"}
+    - mvn $MAVEN_CLI release:prepare -Dusername=oauth2 -Dpassword="$RELEASE_TOKEN"
+      -DreleaseVersion="$RELEASE" ${NEXT_VERSION:+-DdevelopmentVersion="$NEXT_VERSION"}
       -Darguments="-DskipTests -Ddocker.image.skip=true -Dspring-boot.build-image.skip=true"
     # builds the tag (in target/checkout) with its images: chess-engine:$RELEASE and 3d-webgl-chess:$RELEASE
-    - mvn $MAVEN_CLI release:perform -Dgoals=package -Darguments=-DskipTests
+    - mvn $MAVEN_CLI release:perform -Dusername=oauth2 -Dpassword="$RELEASE_TOKEN" -Dgoals=package -Darguments=-DskipTests
     - check_engine "$RELEASE"
     - |
       for image in chess-engine 3d-webgl-chess; do

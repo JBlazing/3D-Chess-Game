@@ -1,0 +1,25 @@
+# Redis for the web app's games in play (/opt/redis on the pi). Not published: the web app reaches it as
+# `redis` on the shared `chess` network, created once with `podman network create chess`.
+# Copy .env.example to .env and fill it in, then `podman-compose up -d`.
+services:
+  redis:
+    image: redis:8.10.2
+    container_name: redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks: [chess]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  redis-data:
+
+networks:
+  chess:
+    external: true
