@@ -14,6 +14,10 @@
     <properties>
         <embedded.postgres.version>2.1.0</embedded.postgres.version>
         <embedded.postgres.binaries.version>16.4.0</embedded.postgres.binaries.version>
+        <!-- docker image names must be lowercase, unlike the artifactId -->
+        <docker.image>3d-webgl-chess:${project.version}</docker.image>
+        <spring-boot.build-image.skip>false</spring-boot.build-image.skip>
+        <docker.push.skip>${spring-boot.build-image.skip}</docker.push.skip>
     </properties>
 
     <dependencyManagement>
@@ -100,8 +104,8 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- A real PostgreSQL server started by the tests. Linux and macOS binaries come with it;
-             Windows needs its own. -->
+        <!-- A real PostgreSQL server started by the tests. The amd64 Linux and macOS binaries come with it;
+             Windows and arm64 Linux (the pi's CI runner) need their own. -->
         <dependency>
             <groupId>io.zonky.test</groupId>
             <artifactId>embedded-postgres</artifactId>
@@ -111,6 +115,11 @@
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-linux-arm64v8</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -156,11 +165,99 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <image>
+                        <name>${docker.image}</name>
+                    </image>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
                             <goal>build-image-no-fork</goal>
                         </goals>
+                    </execution>
+
+                    <!-- on deploy, builds the image for amd64 and arm64 (the pi) and publishes each to
+                         docker.registry (root pom) under its own tag; docker-manifest below joins them.
+                         Buildpacks build one platform at a time, and the other one runs under emulation.
+                         Skip with -Ddocker.push.skip=true -->
+                    <execution>
+                        <id>image-amd64</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>build-image-no-fork</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${docker.push.skip}</skip>
+                            <image>
+                                <name>${docker.registry}/${docker.image}-amd64</name>
+                                <imagePlatform>linux/amd64</imagePlatform>
+                                <publish>true</publish>
+                            </image>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>image-arm64</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>build-image-no-fork</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${docker.push.skip}</skip>
+                            <image>
+                                <name>${docker.registry}/${docker.image}-arm64</name>
+                                <imagePlatform>linux/arm64</imagePlatform>
+                                <publish>true</publish>
+                            </image>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- on deploy, after the per-platform images: the multi-arch tag ${docker.registry}/${docker.image}
+                 listing both. insecure: the registry is plain HTTP; amend and purge let it re-run -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>docker-manifest</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${docker.push.skip}</skip>
+                            <executable>docker</executable>
+                            <arguments>
+                                <argument>manifest</argument>
+                                <argument>create</argument>
+                                <argument>--amend</argument>
+                                <argument>--insecure</argument>
+                                <argument>${docker.registry}/${docker.image}</argument>
+                                <argument>${docker.registry}/${docker.image}-amd64</argument>
+                                <argument>${docker.registry}/${docker.image}-arm64</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>docker-manifest-push</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${docker.push.skip}</skip>
+                            <executable>docker</executable>
+                            <arguments>
+                                <argument>manifest</argument>
+                                <argument>push</argument>
+                                <argument>--insecure</argument>
+                                <argument>--purge</argument>
+                                <argument>${docker.registry}/${docker.image}</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

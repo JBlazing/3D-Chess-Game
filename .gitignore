@@ -17,3 +17,11 @@
 chess.db*
 /3D-WebGL-CHESS/chess.db*
 /3D-WebGL-CHESS/src/main/resources/application-Auth.properties
+# compose secrets (deploy/*/.env.example is the template)
+.env
+
+# Claude Code local settings (per machine)
+.claude/settings.local.json
+
+# the CI jobs' Maven repository (.gitlab-ci.yml caches it)
+/.m2/

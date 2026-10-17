@@ -13,6 +13,9 @@ import java.util.Map;
  * PostgreSQL server (embedded-postgres) and a real Redis server (a Testcontainers container, the
  * same image as the development server). The app picks them up through DB_URL and REDIS_*, the
  * same way it is pointed at them in production.
+ * <p>
+ * With TEST_REDIS_HOST set (the CI pipeline, where Redis is a job service), the tests use that Redis
+ * server, on port 6379 with {@link #REDIS_PASSWORD}, instead of starting a container.
  */
 public final class TestDatabases {
 
@@ -54,10 +57,18 @@ public final class TestDatabases {
         return redis;
     }
 
+    public static String redisHost() {
+        String external = System.getenv("TEST_REDIS_HOST");
+        return external != null ? external : redis().getHost();
+    }
+
+    public static int redisPort() {
+        return System.getenv("TEST_REDIS_HOST") != null ? 6379 : redis().getMappedPort(6379);
+    }
+
     /** Properties pointing the app at the test Redis server. */
     public static Map<String, Object> redisProperties() {
-        return Map.of("REDIS_HOST", redis().getHost(), "REDIS_PORT", redis().getMappedPort(6379),
-                "REDIS_PASSWORD", REDIS_PASSWORD);
+        return Map.of("REDIS_HOST", redisHost(), "REDIS_PORT", redisPort(), "REDIS_PASSWORD", REDIS_PASSWORD);
     }
 
     public static void useRedis(DynamicPropertyRegistry registry) {

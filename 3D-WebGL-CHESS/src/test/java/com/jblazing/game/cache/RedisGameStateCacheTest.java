@@ -36,7 +36,7 @@ class RedisGameStateCacheTest {
     @BeforeAll
     static void connect() {
         RedisStandaloneConfiguration server = new RedisStandaloneConfiguration(
-                TestDatabases.redis().getHost(), TestDatabases.redis().getMappedPort(6379));
+                TestDatabases.redisHost(), TestDatabases.redisPort());
         server.setPassword(TestDatabases.REDIS_PASSWORD);
         connections = new LettuceConnectionFactory(server);
         connections.afterPropertiesSet();

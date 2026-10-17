@@ -1,0 +1,121 @@
+# CI/CD on the pi's GitLab Runner (deploy/gitlab-runner): arm64, with each job a container on the pi's
+# rootless Podman, which the jobs also build images with.
+#
+#   test      the unit tests
+#   snapshot  builds both images and pushes them to the pi's registry as the current -SNAPSHOT version
+#   release   manual, on the default branch: mvn release:prepare + release:perform. Tags v<version>, moves the
+#             branch to the next -SNAPSHOT, and pushes the release images (<version> and latest).
+#             The version is the current one without -SNAPSHOT; to choose it, run the job with the variables
+#             RELEASE_VERSION and/or NEXT_VERSION (e.g. 0.1.0 and 0.2.0-SNAPSHOT).
+#
+# The release job needs the CI/CD variable RELEASE_TOKEN (masked, protected): a project access token with
+# the Maintainer role and the write_repository scope, which pushes the release commits and the tag.
+#
+# The images are built for the pi's architecture (arm64) only.
+
+workflow:
+  rules:
+    # the release plugin's tag: the release job has already built and pushed that version
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+stages: [test, snapshot, release]
+
+default:
+  image: maven:3.9.16-eclipse-temurin-25-noble
+  # only the pi's runner: the jobs need its Podman and its registry, which gitlab.com's runners don't have
+  tags: [pi]
+
+variables:
+  # the Maven repository inside the project, so the runner can cache it
+  MAVEN_OPTS: >-
+    -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
+    --sun-misc-unsafe-memory-access=allow
+  MAVEN_CLI: -B -ntp
+  # REGISTRY (where the images are pushed) and DOCKER_HOST (the pi's Podman socket) come from the runner:
+  # deploy/gitlab-runner/register.sh
+  # a network per job, so the test job reaches its Redis service by name
+  FF_NETWORK_PER_BUILD: "true"
+
+cache:
+  key: maven
+  paths: [.m2/repository]
+
+# the docker CLI, for the engine's image build (exec-maven-plugin runs `docker build`) and the pushes.
+# 27.x: newer ones no longer talk to Podman 4.3's API version.
+.docker:
+  before_script:
+    - curl -fsSL "https://download.docker.com/linux/static/stable/$(uname -m)/docker-27.5.1.tgz"
+      | tar -xz -C /usr/local/bin --strip-components=1 docker/docker
+    - docker version --format 'Docker API {{.Server.APIVersion}} on {{.Server.Os}}/{{.Server.Arch}}'
+    - VERSION=$(mvn $MAVEN_CLI -q help:evaluate -Dexpression=project.version -DforceStdout)
+    # a GraalVM for the wrong architecture fails here, with an exec format error
+    - check_engine() { docker run --rm --entrypoint java "chess-engine:$1" -version 2>&1 | grep GraalVM; }
+
+test:
+  stage: test
+  services:
+    - name: redis:8.10.2
+      alias: redis
+      command: ["redis-server", "--requirepass", "test-password"]
+  variables:
+    # the tests use this Redis instead of starting a Testcontainers one (TestDatabases)
+    TEST_REDIS_HOST: redis
+  script:
+    # the tests' embedded PostgreSQL won't run as root, which the job is
+    - useradd --create-home ci
+    - chown -R ci "$CI_PROJECT_DIR"
+    - runuser -u ci -- mvn $MAVEN_CLI test
+  artifacts:
+    when: always
+    reports:
+      junit: "*/target/surefire-reports/TEST-*.xml"
+
+snapshot:
+  stage: snapshot
+  extends: .docker
+  script:
+    - echo "building $VERSION"
+    # builds the jars and both images: chess-engine:$VERSION and 3d-webgl-chess:$VERSION
+    - mvn $MAVEN_CLI package -DskipTests
+    - check_engine "$VERSION"
+    - |
+      for image in chess-engine 3d-webgl-chess; do
+        docker tag "$image:$VERSION" "$REGISTRY/$image:$VERSION"
+        docker push "$REGISTRY/$image:$VERSION"
+      done
+
+release:
+  stage: release
+  extends: .docker
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+      # a release not run yet doesn't hold the pipeline up
+      allow_failure: true
+  # one release at a time
+  resource_group: release
+  script:
+    - test -n "$RELEASE_TOKEN" || { echo "Set the RELEASE_TOKEN CI/CD variable (see the top of .gitlab-ci.yml)"; exit 1; }
+    - RELEASE=${RELEASE_VERSION:-${VERSION%-SNAPSHOT}}
+    - echo "releasing $RELEASE from $VERSION"
+    # the release plugin commits, tags and pushes: from the branch (the job starts on a detached HEAD),
+    # and as the token (its scm URLs are the plain $CI_SERVER_URL/$CI_PROJECT_PATH.git)
+    - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git config --global url."${CI_SERVER_PROTOCOL}://oauth2:${RELEASE_TOKEN}@${CI_SERVER_HOST}/".insteadOf "${CI_SERVER_URL}/"
+    # versions, commit, tag v$RELEASE, next -SNAPSHOT, push. The test stage has already tested this commit.
+    - mvn $MAVEN_CLI release:prepare -DreleaseVersion="$RELEASE" ${NEXT_VERSION:+-DdevelopmentVersion="$NEXT_VERSION"}
+      -Darguments="-DskipTests -Ddocker.image.skip=true -Dspring-boot.build-image.skip=true"
+    # builds the tag (in target/checkout) with its images: chess-engine:$RELEASE and 3d-webgl-chess:$RELEASE
+    - mvn $MAVEN_CLI release:perform -Dgoals=package -Darguments=-DskipTests
+    - check_engine "$RELEASE"
+    - |
+      for image in chess-engine 3d-webgl-chess; do
+        for tag in "$RELEASE" latest; do
+          docker tag "$image:$RELEASE" "$REGISTRY/$image:$tag"
+          docker push "$REGISTRY/$image:$tag"
+        done
+      done

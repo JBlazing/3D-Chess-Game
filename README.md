@@ -170,7 +170,7 @@ This builds both services and a container image for each:
   so GraalJS compiles the JavaScript. The GraalVM release comes from `graalvm.release` and `graalvm.archive`
   in the root `pom.xml`; **change them together with `graaljs.version`**. If you add a library that needs
   another Java module, add it to the `jlink` list in the Dockerfile.
-- **Web app:** built with Spring Boot's buildpacks (Paketo).
+- **Web app:** `3d-webgl-chess:0.0.1-SNAPSHOT`, built with Spring Boot's buildpacks (Paketo).
 
 The image builds need a Docker or Podman API. With rootless Podman, point `DOCKER_HOST` at its socket
 (e.g. `DOCKER_HOST=unix:///run/user/1000/podman/podman.sock`). To build without images:
@@ -178,6 +178,27 @@ The image builds need a Docker or Podman API. With rootless Podman, point `DOCKE
 ```sh
 mvn package -Ddocker.image.skip=true -Dspring-boot.build-image.skip=true
 ```
+
+`mvn deploy` also builds both images for `linux/amd64` and `linux/arm64` and pushes them, as multi-arch
+images, to the registry in the `REGISTRY` environment variable (or `-Ddocker.registry=host:port`):
+`$REGISTRY/chess-engine:<version>` and `$REGISTRY/3d-webgl-chess:<version>`. The web app's per-platform
+images are pushed too, as `<version>-amd64` and `<version>-arm64`. Jars aren't uploaded anywhere. Without a
+registry, deploy stops before pushing; skip the pushes with `-Ddocker.push.skip=true`:
+
+```sh
+REGISTRY=pi:5000 mvn deploy
+```
+
+The GitLab CI runner sets `REGISTRY` for its jobs (`deploy/gitlab-runner/register.sh`).
+
+The non-native architecture builds under QEMU emulation (Docker Desktop includes it), so a deploy is slow.
+The engine's multi-arch build needs a buildx builder, created once:
+
+```sh
+docker buildx create --name chess-multiarch --driver docker-container --bootstrap
+```
+
+The registry is plain HTTP, so Docker needs it in `insecure-registries`.
 
 Run the engine image with the broker settings:
 

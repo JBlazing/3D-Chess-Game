@@ -15,6 +15,10 @@
     <properties>
         <docker.image>chess-engine:${project.version}</docker.image>
         <docker.image.skip>false</docker.image.skip>
+        <docker.push.skip>${docker.image.skip}</docker.push.skip>
+        <!-- the buildx builder for the multi-arch push, a docker-container one: the README has the
+             command that creates it -->
+        <docker.builder>chess-multiarch</docker.builder>
     </properties>
 
     <dependencies>
@@ -104,6 +108,40 @@
                                 <argument>JAR=target/${project.build.finalName}-exec.jar</argument>
                                 <argument>-t</argument>
                                 <argument>${docker.image}</argument>
+                                <argument>.</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- on deploy, builds the image for amd64 and arm64 (the pi) with buildx and pushes it to
+                         docker.registry (root pom) as one multi-arch image. The other architecture builds under
+                         QEMU emulation, so it's slow. registry.insecure: the registry is plain HTTP.
+                         Skip with -Ddocker.push.skip=true -->
+                    <execution>
+                        <id>docker-push</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${docker.push.skip}</skip>
+                            <executable>docker</executable>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                            <arguments>
+                                <argument>buildx</argument>
+                                <argument>build</argument>
+                                <argument>--builder</argument>
+                                <argument>${docker.builder}</argument>
+                                <argument>--platform</argument>
+                                <argument>linux/amd64,linux/arm64</argument>
+                                <argument>--build-arg</argument>
+                                <argument>GRAALVM_RELEASE=${graalvm.release}</argument>
+                                <argument>--build-arg</argument>
+                                <argument>GRAALVM_ARCHIVE=${graalvm.archive}</argument>
+                                <argument>--build-arg</argument>
+                                <argument>JAR=target/${project.build.finalName}-exec.jar</argument>
+                                <argument>--output</argument>
+                                <argument>type=image,name=${docker.registry}/${docker.image},push=true,registry.insecure=true</argument>
                                 <argument>.</argument>
                             </arguments>
                         </configuration>
