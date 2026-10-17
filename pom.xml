@@ -17,7 +17,7 @@
 
     <groupId>com.jblazing</groupId>
     <artifactId>chess-parent</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <!-- where mvn release:prepare commits and tags: the project's GitLab repository, from GitLab CI's predefined
@@ -27,7 +27,7 @@
         <connection>scm:git:${env.CI_SERVER_URL}/${env.CI_PROJECT_PATH}.git</connection>
         <developerConnection>scm:git:${env.CI_SERVER_URL}/${env.CI_PROJECT_PATH}.git</developerConnection>
         <url>${env.CI_PROJECT_URL}</url>
-        <tag>v0.0.1</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <modules>
