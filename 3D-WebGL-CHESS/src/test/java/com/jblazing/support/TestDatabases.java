@@ -14,8 +14,12 @@ import java.util.Map;
  * same image as the development server). The app picks them up through DB_URL and REDIS_*, the
  * same way it is pointed at them in production.
  * <p>
- * With TEST_REDIS_HOST set (the CI pipeline, where Redis is a job service), the tests use that Redis
- * server, on port 6379 with {@link #REDIS_PASSWORD}, instead of starting a container.
+ * In the CI pipeline both are job services instead, given by environment variables:
+ * <ul>
+ *   <li>TEST_DB_URL: a JDBC URL to a PostgreSQL server that lets the user postgres in without a password.
+ *       (embedded-postgres can't run there: its arm64 binaries don't load on the pi's 16K-page kernel.)</li>
+ *   <li>TEST_REDIS_HOST: a Redis server on port 6379 with {@link #REDIS_PASSWORD}.</li>
+ * </ul>
  */
 public final class TestDatabases {
 
@@ -28,6 +32,10 @@ public final class TestDatabases {
     }
 
     public static synchronized String postgresUrl() {
+        String external = System.getenv("TEST_DB_URL");
+        if (external != null) {
+            return external;
+        }
         if (postgres == null) {
             try {
                 postgres = EmbeddedPostgres.builder().start();

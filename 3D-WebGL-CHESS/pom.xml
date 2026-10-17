@@ -104,8 +104,8 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- A real PostgreSQL server started by the tests. The amd64 Linux and macOS binaries come with it;
-             Windows and arm64 Linux (the pi's CI runner) need their own. -->
+        <!-- A real PostgreSQL server started by the tests. Linux and macOS binaries come with it;
+             Windows needs its own. (The CI pipeline uses a PostgreSQL service instead: TestDatabases.) -->
         <dependency>
             <groupId>io.zonky.test</groupId>
             <artifactId>embedded-postgres</artifactId>
@@ -115,11 +115,6 @@
         <dependency>
             <groupId>io.zonky.test.postgres</groupId>
             <artifactId>embedded-postgres-binaries-windows-amd64</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.zonky.test.postgres</groupId>
-            <artifactId>embedded-postgres-binaries-linux-arm64v8</artifactId>
             <scope>test</scope>
         </dependency>
 

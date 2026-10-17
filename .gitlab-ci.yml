@@ -55,18 +55,18 @@ cache:
 
 test:
   stage: test
+  # the tests' databases, reached by their image names (TestDatabases): embedded-postgres's arm64
+  # binaries don't load on the pi's 16K-page kernel, and Testcontainers would need the Podman socket
   services:
+    - name: postgres:18.6
     - name: redis:8.10.2
-      alias: redis
       command: ["redis-server", "--requirepass", "test-password"]
   variables:
-    # the tests use this Redis instead of starting a Testcontainers one (TestDatabases)
+    POSTGRES_HOST_AUTH_METHOD: trust
+    TEST_DB_URL: jdbc:postgresql://postgres:5432/postgres
     TEST_REDIS_HOST: redis
   script:
-    # the tests' embedded PostgreSQL won't run as root, which the job is
-    - useradd --create-home ci
-    - chown -R ci "$CI_PROJECT_DIR"
-    - runuser -u ci -- mvn $MAVEN_CLI test
+    - mvn $MAVEN_CLI test
   artifacts:
     when: always
     reports:
@@ -97,10 +97,7 @@ release:
   # one release at a time
   resource_group: release
   script:
-    - test -n "$RELEASE_TOKEN" || { echo "Set the RELEASE_TOKEN CI/CD variable (see the top of .gitlab-ci.yml)"; exit 1; }
-    - RELEASE=${RELEASE_VERSION:-${VERSION%-SNAPSHOT}}
-    - echo "releasing $RELEASE from $VERSION"
-    # the release plugin commits, tags and pushes: from the branch (the job starts on a detached HEAD),
+
     # and as the token (its scm URLs are the plain $CI_SERVER_URL/$CI_PROJECT_PATH.git)
     - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
     - git config --global user.name "$GITLAB_USER_NAME"

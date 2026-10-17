@@ -16,7 +16,6 @@
 # Local SQLite database
 chess.db*
 /3D-WebGL-CHESS/chess.db*
-/3D-WebGL-CHESS/src/main/resources/application-Auth.properties
 # compose secrets (deploy/*/.env.example is the template)
 .env
 
